@@ -1,4 +1,4 @@
-# ⏳ osc-progress — One tiny lib to emit OSC 9;4 terminal progress.
+# ⏳ osc-progress — Tiny lib for OSC 9;4 terminal progress.
 
 Tiny TypeScript helper for **OSC 9;4** terminal progress sequences (used by terminals like Ghostty / WezTerm / Windows Terminal).
 
