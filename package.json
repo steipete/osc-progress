@@ -2,6 +2,25 @@
   "name": "osc-progress",
   "version": "0.1.0",
   "description": "Tiny TypeScript helper for OSC 9;4 terminal progress sequences.",
+  "license": "MIT",
+  "author": "Peter Steinberger",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/steipete/osc-progress.git"
+  },
+  "homepage": "https://github.com/steipete/osc-progress#readme",
+  "bugs": {
+    "url": "https://github.com/steipete/osc-progress/issues"
+  },
+  "keywords": [
+    "osc",
+    "terminal",
+    "progress",
+    "cli",
+    "ghostty",
+    "wezterm",
+    "windows-terminal"
+  ],
   "type": "module",
   "main": "./dist/esm/index.js",
   "module": "./dist/esm/index.js",
@@ -21,10 +40,13 @@
   "engines": {
     "node": ">=20"
   },
+  "sideEffects": false,
   "packageManager": "pnpm@10.25.0",
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "prepare": "pnpm build",
+    "prepack": "pnpm build",
+    "prepublishOnly": "pnpm check",
     "typecheck": "tsc -p tsconfig.build.json --noEmit",
     "format": "biome format --write .",
     "lint": "biome check .",
