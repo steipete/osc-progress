@@ -1,6 +1,6 @@
 {
   "name": "osc-progress",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Tiny TypeScript helper for OSC 9;4 terminal progress sequences.",
   "license": "MIT",
   "author": "Peter Steinberger",

@@ -1,6 +1,10 @@
 # Changelog
 All notable changes to this project are documented in this file.
 
+## 0.1.1 - Unreleased
+### Changed
+- TBD
+
 ## 0.1.0 - 2025-12-19
 ### Added
 - OSC 9;4 progress emitter (`startOscProgress`) with determinate (`0% → 99%`) and indeterminate modes.
