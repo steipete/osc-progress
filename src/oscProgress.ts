@@ -1,10 +1,21 @@
 import process from 'node:process'
 
+/**
+ * OSC 9;4 progress prefix (`ESC ] 9 ; 4 ;`).
+ *
+ * Typical emitted forms:
+ * - `ESC ] 9;4;<state>;<percent>;<payload> ST`
+ * - `ESC ] 9;4;<state>;;<payload> ST` (indeterminate)
+ */
 export const OSC_PROGRESS_PREFIX = '\u001b]9;4;'
+/** String Terminator (ST): `ESC \\` */
 export const OSC_PROGRESS_ST = '\u001b\\'
+/** Bell (BEL): `0x07` */
 export const OSC_PROGRESS_BEL = '\u0007'
+/** C1 String Terminator (ST): `0x9c` */
 export const OSC_PROGRESS_C1_ST = '\u009c'
 
+/** How to terminate the OSC sequence when emitting. */
 export type OscProgressTerminator = 'st' | 'bel'
 
 export interface OscProgressSupportOptions {
@@ -18,10 +29,21 @@ export interface OscProgressSupportOptions {
 }
 
 export interface OscProgressOptions extends OscProgressSupportOptions {
+  /**
+   * Extra payload appended to the OSC sequence (many terminals ignore this; a few show it).
+   * Defaults to `"Working…"`. Sanitized to avoid control chars and terminators.
+   */
   label?: string
+  /**
+   * Target duration in ms for the internal `0 → 99%` ramp.
+   * The implementation never emits 100% by itself; completion is via `stop()`.
+   */
   targetMs?: number
+  /** Write function (defaults to `process.stderr.write`). */
   write?: (data: string) => void
+  /** Environment lookup (defaults to `process.env`). */
   env?: NodeJS.ProcessEnv
+  /** TTY flag (defaults to `process.stdout.isTTY`). */
   isTty?: boolean
   /** When true, emit an indeterminate progress indicator (no percentage). */
   indeterminate?: boolean
@@ -39,9 +61,13 @@ export interface OscProgressOptions extends OscProgressSupportOptions {
 }
 
 export interface OscProgressSequence {
+  /** Inclusive start index in the input string. */
   start: number
+  /** Exclusive end index in the input string. */
   end: number
+  /** Raw substring that matched. */
   raw: string
+  /** Which terminator was encountered. */
   terminator: 'st' | 'bel' | 'c1st'
 }
 
@@ -49,6 +75,10 @@ function resolveTerminator(terminator: OscProgressTerminator | undefined): strin
   return terminator === 'bel' ? OSC_PROGRESS_BEL : OSC_PROGRESS_ST
 }
 
+/**
+ * Sanitizes a label/payload so it can't break the surrounding OSC sequence.
+ * Removes escape chars and common OSC terminators; trims whitespace.
+ */
 export function sanitizeLabel(label: string): string {
   const withoutSt = label.replaceAll(OSC_PROGRESS_ST, '')
   const withoutEscape = withoutSt.split('\u001b').join('')
@@ -58,6 +88,17 @@ export function sanitizeLabel(label: string): string {
   return withoutTerminators.replaceAll(']', '').trim()
 }
 
+/**
+ * Best-effort check whether OSC 9;4 progress output is likely to work.
+ *
+ * Default heuristics:
+ * - requires `isTty === true`
+ * - enables for Ghostty (`TERM_PROGRAM=ghostty*`), WezTerm (`TERM_PROGRAM=wezterm*`), Windows Terminal (`WT_SESSION`)
+ *
+ * Override knobs:
+ * - `options.force` / `options.disabled`
+ * - `options.forceEnvVar` / `options.disableEnvVar` (expects value `"1"`)
+ */
 export function supportsOscProgress(
   env: NodeJS.ProcessEnv = process.env,
   isTty: boolean = process.stdout.isTTY,
@@ -81,6 +122,16 @@ export function supportsOscProgress(
   return false
 }
 
+/**
+ * Finds OSC 9;4 progress sequences inside an arbitrary string.
+ *
+ * Supports three terminators:
+ * - ST (`ESC \\`)
+ * - BEL (`0x07`)
+ * - C1 ST (`0x9c`)
+ *
+ * Unterminated sequences are ignored (use `stripOscProgress` if you want to drop them).
+ */
 export function findOscProgressSequences(text: string): OscProgressSequence[] {
   const sequences: OscProgressSequence[] = []
   const prefixLen = OSC_PROGRESS_PREFIX.length
@@ -126,6 +177,13 @@ export function findOscProgressSequences(text: string): OscProgressSequence[] {
   return sequences
 }
 
+/**
+ * Removes OSC 9;4 progress sequences from `text`.
+ *
+ * Behavior:
+ * - strips sequences terminated by ST/BEL/C1 ST
+ * - if a sequence is unterminated, it is removed until end-of-string
+ */
 export function stripOscProgress(text: string): string {
   const prefixLen = OSC_PROGRESS_PREFIX.length
   let current = text
@@ -148,10 +206,23 @@ export function stripOscProgress(text: string): string {
   return current
 }
 
+/**
+ * Convenience helper:
+ * - if `keepOsc` is true, returns the input unchanged (useful when writing to a TTY)
+ * - otherwise, strips OSC 9;4 sequences (useful for logs/snapshots)
+ */
 export function sanitizeOscProgress(text: string, keepOsc: boolean): string {
   return keepOsc ? text : stripOscProgress(text)
 }
 
+/**
+ * Emits a terminal progress indicator using OSC 9;4 and returns `stop()`.
+ *
+ * Notes:
+ * - no-op when `supportsOscProgress(...)` is false
+ * - determinate mode ramps `0% → 99%` on a timer; `stop()` clears progress
+ * - indeterminate mode emits `state=3` and `stop()` clears progress
+ */
 export function startOscProgress(options: OscProgressOptions = {}): () => void {
   const {
     label = 'Working…',
