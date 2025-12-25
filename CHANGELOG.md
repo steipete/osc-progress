@@ -1,9 +1,9 @@
 # Changelog
 All notable changes to this project are documented in this file.
 
-## 0.1.1 - Unreleased
+## 0.1.1 - 2025-12-25
 ### Changed
-- TBD
+- Add `createOscProgressController` for stateful determinate/indeterminate updates.
 
 ## 0.1.0 - 2025-12-19
 ### Added

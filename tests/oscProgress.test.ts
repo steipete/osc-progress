@@ -1,5 +1,6 @@
 import { describe, expect, test, vi } from 'vitest'
 import {
+  createOscProgressController,
   findOscProgressSequences,
   OSC_PROGRESS_BEL,
   OSC_PROGRESS_C1_ST,
@@ -205,5 +206,40 @@ describe('startOscProgress', () => {
     } finally {
       writeSpy.mockRestore()
     }
+  })
+})
+
+describe('createOscProgressController', () => {
+  test('noop when not supported', () => {
+    const writes: string[] = []
+    const osc = createOscProgressController({
+      write: (chunk) => writes.push(chunk),
+      env: { TERM_PROGRAM: 'ghostty' },
+      isTty: false,
+    })
+
+    osc.setIndeterminate('Waiting')
+    osc.setPercent('Transcribing', 50)
+    osc.clear()
+
+    expect(writes).toEqual([])
+  })
+
+  test('emits indeterminate, percent, and clear frames', () => {
+    const writes: string[] = []
+    const osc = createOscProgressController({
+      env: { TERM_PROGRAM: 'wezterm' },
+      isTty: true,
+      label: 'Init',
+      write: (data) => writes.push(data),
+    })
+
+    osc.setIndeterminate('Waiting')
+    osc.setPercent('Transcribing', 50)
+    osc.clear()
+
+    expect(writes[0]).toBe(`${OSC_PROGRESS_PREFIX}3;;Waiting${OSC_PROGRESS_ST}`)
+    expect(writes[1]).toBe(`${OSC_PROGRESS_PREFIX}1;50;Transcribing${OSC_PROGRESS_ST}`)
+    expect(writes[2]).toBe(`${OSC_PROGRESS_PREFIX}0;0;Transcribing${OSC_PROGRESS_ST}`)
   })
 })

@@ -75,6 +75,15 @@ function resolveTerminator(terminator: OscProgressTerminator | undefined): strin
   return terminator === 'bel' ? OSC_PROGRESS_BEL : OSC_PROGRESS_ST
 }
 
+export type OscProgressController = {
+  /** Emit an indeterminate progress indicator. */
+  setIndeterminate: (label: string) => void
+  /** Emit a determinate progress indicator. */
+  setPercent: (label: string, percent: number) => void
+  /** Clear/hide the progress indicator. */
+  clear: () => void
+}
+
 /**
  * Sanitizes a label/payload so it can't break the surrounding OSC sequence.
  * Removes escape chars and common OSC terminators; trims whitespace.
@@ -272,5 +281,55 @@ export function startOscProgress(options: OscProgressOptions = {}): () => void {
     stopped = true
     clearInterval(timer)
     send(0, 0)
+  }
+}
+
+/**
+ * Creates a small stateful controller for OSC 9;4 progress output.
+ *
+ * Useful when you want to drive progress updates yourself (e.g. bytes downloaded / total bytes,
+ * or seconds processed / total duration) and switch between indeterminate and determinate modes.
+ *
+ * Behavior:
+ * - no-op controller when `supportsOscProgress(...)` is false
+ * - `setIndeterminate(label)` emits `state=3`
+ * - `setPercent(label, percent)` emits `state=1` with a clamped integer percent
+ * - `clear()` emits `state=0` using the last label
+ */
+export function createOscProgressController(
+  options: OscProgressOptions = {}
+): OscProgressController {
+  const { label = 'Working…', write = (text) => process.stderr.write(text), terminator } = options
+
+  if (!supportsOscProgress(options.env, options.isTty, options)) {
+    return { setIndeterminate: () => {}, setPercent: () => {}, clear: () => {} }
+  }
+
+  const end = resolveTerminator(terminator)
+
+  const send = (state: number, percent: number | null, nextLabel: string) => {
+    const cleanLabel = sanitizeLabel(nextLabel)
+    if (percent == null) {
+      write(`${OSC_PROGRESS_PREFIX}${state};;${cleanLabel}${end}`)
+      return
+    }
+    const clamped = Math.max(0, Math.min(100, Math.round(percent)))
+    write(`${OSC_PROGRESS_PREFIX}${state};${clamped};${cleanLabel}${end}`)
+  }
+
+  let lastLabel = label
+
+  return {
+    setIndeterminate: (nextLabel) => {
+      lastLabel = nextLabel
+      send(3, null, nextLabel)
+    },
+    setPercent: (nextLabel, percent) => {
+      lastLabel = nextLabel
+      send(1, percent, nextLabel)
+    },
+    clear: () => {
+      send(0, 0, lastLabel)
+    },
   }
 }

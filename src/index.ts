@@ -1,9 +1,11 @@
 export {
+  createOscProgressController,
   findOscProgressSequences,
   OSC_PROGRESS_BEL,
   OSC_PROGRESS_C1_ST,
   OSC_PROGRESS_PREFIX,
   OSC_PROGRESS_ST,
+  type OscProgressController,
   type OscProgressOptions,
   type OscProgressSequence,
   type OscProgressSupportOptions,
