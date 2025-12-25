@@ -1,5 +1,7 @@
 # Release Checklist (npm)
 
+Rule: every release = **npm publish + git tag + GitHub release** (always do all three).
+
 ## 1) Version & changelog
 - [ ] Decide the next version (start at `0.1.0`, then increment as needed).
 - [ ] Update `package.json` version.
@@ -32,6 +34,15 @@
   - `npm view osc-progress version`
   - `npm view osc-progress dist-tags --json`
 
-## 5) Tag + GitHub release
-- [ ] `git tag v<version> && git push origin v<version>`
-- [ ] Create GitHub release for tag `v<version>` (title = `<version>`; body = changelog bullets for that version).
+## 5) Tag + GitHub release (always)
+- [ ] Ensure tag points at the published commit:
+  - `git tag v<version>`
+  - `git push origin v<version>`
+- [ ] Create GitHub release for tag `v<version>`:
+  - title = `<version>` (just the version)
+  - body = changelog bullets for that version
+  - `gh release create v<version> --title "<version>" --notes "<paste bullets>"`
+
+## 6) Verify (post)
+- [ ] `npm view osc-progress time --json`
+- [ ] `gh release view v<version>`
