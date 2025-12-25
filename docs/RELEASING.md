@@ -17,9 +17,20 @@
 
 ## 4) Publish
 - [ ] Ensure git status is clean; commit + push.
-- [ ] Confirm npm session: `npm whoami` (and 2FA readiness).
-- [ ] Publish: `npm publish`
-- [ ] Verify registry: `npm view osc-progress version`
+- [ ] Confirm registry + auth:
+  - `npm ping`
+  - `npm whoami`
+- [ ] Avoid browser auth prompts (recommended):
+  - Create a **granular access token** with **write** + **Bypass 2FA** at npmjs.com/settings/~/tokens.
+  - Export it in `~/.profile` (e.g. `export NPM_TOKEN=...`) and wire it in `~/.npmrc`:
+    - `//registry.npmjs.org/:_authToken=${NPM_TOKEN}`
+  - If `npm publish` still prompts for browser auth, the token wasn’t loaded; rerun from a shell that has `NPM_TOKEN` (e.g. `source ~/.profile`).
+- [ ] Publish:
+  - `pnpm publish --access public --tag latest`
+  - If npm requires 2FA OTP: add `--otp <code>`
+- [ ] Verify registry:
+  - `npm view osc-progress version`
+  - `npm view osc-progress dist-tags --json`
 
 ## 5) Tag + GitHub release
 - [ ] `git tag v<version> && git push origin v<version>`
