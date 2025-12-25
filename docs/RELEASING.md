@@ -1,7 +1,7 @@
 # Release Checklist (npm)
 
 ## 1) Version & changelog
-- [ ] Decide the next version (start at `0.1.0`, then `0.1.1`, etc).
+- [ ] Decide the next version (start at `0.1.0`, then increment as needed).
 - [ ] Update `package.json` version.
 - [ ] Update `CHANGELOG.md` (product-facing bullets only).
 - [ ] `pnpm install` (keep `pnpm-lock.yaml` current).

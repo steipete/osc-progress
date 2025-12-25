@@ -242,4 +242,85 @@ describe('createOscProgressController', () => {
     expect(writes[1]).toBe(`${OSC_PROGRESS_PREFIX}1;50;Transcribing${OSC_PROGRESS_ST}`)
     expect(writes[2]).toBe(`${OSC_PROGRESS_PREFIX}0;0;Transcribing${OSC_PROGRESS_ST}`)
   })
+
+  test('clear uses the initial label if nothing was set yet', () => {
+    const writes: string[] = []
+    const osc = createOscProgressController({
+      env: { TERM_PROGRAM: 'wezterm' },
+      isTty: true,
+      label: 'Init',
+      write: (data) => writes.push(data),
+    })
+
+    osc.clear()
+
+    expect(writes[0]).toBe(`${OSC_PROGRESS_PREFIX}0;0;Init${OSC_PROGRESS_ST}`)
+  })
+
+  test('rounds and clamps percent to [0..100]', () => {
+    const writes: string[] = []
+    const osc = createOscProgressController({
+      env: { TERM_PROGRAM: 'wezterm' },
+      isTty: true,
+      write: (data) => writes.push(data),
+    })
+
+    osc.setPercent('Downloading', 12.4)
+    osc.setPercent('Downloading', 12.5)
+    osc.setPercent('Downloading', -10)
+    osc.setPercent('Downloading', 9000)
+
+    expect(writes[0]).toBe(`${OSC_PROGRESS_PREFIX}1;12;Downloading${OSC_PROGRESS_ST}`)
+    expect(writes[1]).toBe(`${OSC_PROGRESS_PREFIX}1;13;Downloading${OSC_PROGRESS_ST}`)
+    expect(writes[2]).toBe(`${OSC_PROGRESS_PREFIX}1;0;Downloading${OSC_PROGRESS_ST}`)
+    expect(writes[3]).toBe(`${OSC_PROGRESS_PREFIX}1;100;Downloading${OSC_PROGRESS_ST}`)
+  })
+
+  test('sanitizes labels before emitting', () => {
+    const writes: string[] = []
+    const osc = createOscProgressController({
+      env: { TERM_PROGRAM: 'wezterm' },
+      isTty: true,
+      write: (data) => writes.push(data),
+    })
+
+    osc.setIndeterminate(`Load\u001b[31m file${OSC_PROGRESS_ST}${OSC_PROGRESS_BEL}]`)
+
+    expect(writes[0]).toBe(`${OSC_PROGRESS_PREFIX}3;;Load[31m file${OSC_PROGRESS_ST}`)
+  })
+
+  test('supports BEL terminator', () => {
+    const writes: string[] = []
+    const osc = createOscProgressController({
+      env: { TERM_PROGRAM: 'wezterm' },
+      isTty: true,
+      terminator: 'bel',
+      write: (data) => writes.push(data),
+    })
+
+    osc.setIndeterminate('Waiting')
+    osc.setPercent('Transcribing', 50)
+    osc.clear()
+
+    expect(writes[0]).toBe(`${OSC_PROGRESS_PREFIX}3;;Waiting${OSC_PROGRESS_BEL}`)
+    expect(writes[1]).toBe(`${OSC_PROGRESS_PREFIX}1;50;Transcribing${OSC_PROGRESS_BEL}`)
+    expect(writes[2]).toBe(`${OSC_PROGRESS_PREFIX}0;0;Transcribing${OSC_PROGRESS_BEL}`)
+  })
+
+  test('uses default write (process.stderr.write) when not provided', () => {
+    const writeSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
+    try {
+      const osc = createOscProgressController({
+        env: { TERM_PROGRAM: 'wezterm' },
+        isTty: true,
+      })
+
+      osc.setPercent('Downloading', 1)
+      osc.clear()
+
+      expect(writeSpy).toHaveBeenCalled()
+    } finally {
+      writeSpy.mockRestore()
+    }
+  })
 })

@@ -299,36 +299,45 @@ export function startOscProgress(options: OscProgressOptions = {}): () => void {
 export function createOscProgressController(
   options: OscProgressOptions = {}
 ): OscProgressController {
+  // Default to stderr: progress belongs with other interactive output and avoids polluting stdout pipes.
   const { label = 'Working…', write = (text) => process.stderr.write(text), terminator } = options
 
   if (!supportsOscProgress(options.env, options.isTty, options)) {
+    // No-op controller: callers can keep their code linear and still be safe in unsupported terminals/logs.
     return { setIndeterminate: () => {}, setPercent: () => {}, clear: () => {} }
   }
 
+  // Resolve once; avoids branching in hot paths.
   const end = resolveTerminator(terminator)
 
   const send = (state: number, percent: number | null, nextLabel: string) => {
+    // Always sanitize; labels often come from user-visible input (filenames/URLs) and must not break OSC.
     const cleanLabel = sanitizeLabel(nextLabel)
     if (percent == null) {
       write(`${OSC_PROGRESS_PREFIX}${state};;${cleanLabel}${end}`)
       return
     }
+    // Be forgiving: accept floats/out-of-range and normalize to the OSC percent integer field.
     const clamped = Math.max(0, Math.min(100, Math.round(percent)))
     write(`${OSC_PROGRESS_PREFIX}${state};${clamped};${cleanLabel}${end}`)
   }
 
+  // Remember the last user-provided label so `clear()` clears the most recent task label.
   let lastLabel = label
 
   return {
     setIndeterminate: (nextLabel) => {
+      // Update label first so a `clear()` during/after this call uses the same label.
       lastLabel = nextLabel
       send(3, null, nextLabel)
     },
     setPercent: (nextLabel, percent) => {
+      // Same label tracking semantics as indeterminate mode.
       lastLabel = nextLabel
       send(1, percent, nextLabel)
     },
     clear: () => {
+      // Clear/hide frame. Reuses the last label so terminals that show it don't "flash" back to defaults.
       send(0, 0, lastLabel)
     },
   }

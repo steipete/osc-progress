@@ -76,6 +76,11 @@ Returns a small stateful controller:
 
 Use this when you already have real progress (bytes/total, seconds/total) and want determinate terminal progress instead of the timer-based ramp.
 
+Notes:
+- returns no-op methods when `supportsOscProgress(...)` is false
+- `percent` is rounded and clamped to `0..100`
+- `clear()` uses the last label (or the initial `options.label` if nothing was set yet)
+
 ```ts
 import process from 'node:process'
 import { createOscProgressController } from 'osc-progress'
