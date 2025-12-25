@@ -1,9 +1,13 @@
 # Changelog
 All notable changes to this project are documented in this file.
 
+## 0.2.0 - 2025-12-25
+### Added
+- `createOscProgressController` for stateful determinate/indeterminate updates.
+
 ## 0.1.1 - 2025-12-25
-### Changed
-- Add `createOscProgressController` for stateful determinate/indeterminate updates.
+### Note
+- 0.1.1 was tagged in git but superseded by 0.2.0 before npm publish.
 
 ## 0.1.0 - 2025-12-19
 ### Added

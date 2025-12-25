@@ -67,6 +67,31 @@ Notes:
 - default is a timer-driven `0% → 99%` progression (never completes by itself).
 - `terminator` defaults to `st` (`ESC \\`); `bel` is also supported.
 
+### `createOscProgressController(options?)`
+
+Returns a small stateful controller:
+- `setIndeterminate(label)`
+- `setPercent(label, percent)`
+- `clear()`
+
+Use this when you already have real progress (bytes/total, seconds/total) and want determinate terminal progress instead of the timer-based ramp.
+
+```ts
+import process from 'node:process'
+import { createOscProgressController } from 'osc-progress'
+
+const osc = createOscProgressController({
+  env: process.env,
+  isTty: process.stderr.isTTY,
+  write: (chunk) => process.stderr.write(chunk),
+})
+
+osc.setIndeterminate('Connecting')
+osc.setPercent('Downloading', 12)
+osc.setPercent('Downloading', 67)
+osc.clear()
+```
+
 ### `sanitizeOscProgress(text, keepOsc)`
 
 Removes OSC 9;4 progress sequences (terminated by `BEL`, `ST` (`ESC \\`), or `0x9c`).
