@@ -220,7 +220,11 @@ describe('createOscProgressController', () => {
 
     osc.setIndeterminate('Waiting')
     osc.setPercent('Transcribing', 50)
+    osc.setPaused('Paused')
+    osc.done('Done')
+    osc.fail('Fail')
     osc.clear()
+    osc.dispose()
 
     expect(writes).toEqual([])
   })
@@ -258,6 +262,7 @@ describe('createOscProgressController', () => {
   })
 
   test('rounds and clamps percent to [0..100]', () => {
+    vi.useFakeTimers()
     const writes: string[] = []
     const osc = createOscProgressController({
       env: { TERM_PROGRAM: 'wezterm' },
@@ -266,14 +271,18 @@ describe('createOscProgressController', () => {
     })
 
     osc.setPercent('Downloading', 12.4)
+    vi.advanceTimersByTime(200)
     osc.setPercent('Downloading', 12.5)
+    vi.advanceTimersByTime(200)
     osc.setPercent('Downloading', -10)
+    vi.advanceTimersByTime(200)
     osc.setPercent('Downloading', 9000)
 
     expect(writes[0]).toBe(`${OSC_PROGRESS_PREFIX}1;12;Downloading${OSC_PROGRESS_ST}`)
     expect(writes[1]).toBe(`${OSC_PROGRESS_PREFIX}1;13;Downloading${OSC_PROGRESS_ST}`)
     expect(writes[2]).toBe(`${OSC_PROGRESS_PREFIX}1;0;Downloading${OSC_PROGRESS_ST}`)
     expect(writes[3]).toBe(`${OSC_PROGRESS_PREFIX}1;100;Downloading${OSC_PROGRESS_ST}`)
+    vi.useRealTimers()
   })
 
   test('sanitizes labels before emitting', () => {
@@ -321,6 +330,350 @@ describe('createOscProgressController', () => {
       expect(writeSpy).toHaveBeenCalled()
     } finally {
       writeSpy.mockRestore()
+    }
+  })
+
+  test('throttles rapid determinate updates', () => {
+    vi.useFakeTimers()
+    const writes: string[] = []
+    const osc = createOscProgressController({
+      env: { TERM_PROGRAM: 'wezterm' },
+      isTty: true,
+      write: (data) => writes.push(data),
+    })
+
+    osc.setPercent('Downloading', 1)
+    osc.setPercent('Downloading', 2)
+    osc.setPercent('Downloading', 3)
+    expect(writes).toHaveLength(1)
+
+    vi.advanceTimersByTime(200)
+    osc.setPercent('Downloading', 4)
+    expect(writes).toHaveLength(2)
+    vi.useRealTimers()
+  })
+
+  test('dedupes identical updates even after time passes', () => {
+    vi.useFakeTimers()
+    const writes: string[] = []
+    const osc = createOscProgressController({
+      env: { TERM_PROGRAM: 'wezterm' },
+      isTty: true,
+      write: (data) => writes.push(data),
+    })
+
+    osc.setPercent('Downloading', 10)
+    vi.advanceTimersByTime(200)
+    osc.setPercent('Downloading', 10)
+    expect(writes).toHaveLength(1)
+    vi.useRealTimers()
+  })
+
+  test('emits stalled state after inactivity', () => {
+    vi.useFakeTimers()
+    const writes: string[] = []
+    const osc = createOscProgressController({
+      env: { TERM_PROGRAM: 'wezterm' },
+      isTty: true,
+      stallAfterMs: 1_000,
+      write: (data) => writes.push(data),
+    })
+
+    osc.setPercent('Downloading', 5)
+    expect(writes[0]).toBe(`${OSC_PROGRESS_PREFIX}1;5;Downloading${OSC_PROGRESS_ST}`)
+
+    vi.advanceTimersByTime(1_000)
+    expect(writes[1]).toBe(`${OSC_PROGRESS_PREFIX}4;5;Downloading (stalled)${OSC_PROGRESS_ST}`)
+
+    osc.setPercent('Downloading', 6)
+    expect(writes[2]).toBe(`${OSC_PROGRESS_PREFIX}1;6;Downloading${OSC_PROGRESS_ST}`)
+    vi.useRealTimers()
+  })
+
+  test('refreshing progress clears the prior stall timer', () => {
+    vi.useFakeTimers()
+    const clearSpy = vi.spyOn(global, 'clearTimeout')
+    const osc = createOscProgressController({
+      env: { TERM_PROGRAM: 'wezterm' },
+      isTty: true,
+      stallAfterMs: 500,
+      write: () => {},
+    })
+
+    osc.setPercent('Downloading', 1)
+    osc.setPercent('Downloading', 2)
+    expect(clearSpy).toHaveBeenCalled()
+
+    clearSpy.mockRestore()
+    vi.useRealTimers()
+  })
+
+  test('done emits 100 then clears after delay', () => {
+    vi.useFakeTimers()
+    const writes: string[] = []
+    const osc = createOscProgressController({
+      env: { TERM_PROGRAM: 'wezterm' },
+      isTty: true,
+      clearDelayMs: 200,
+      write: (data) => writes.push(data),
+    })
+
+    osc.setPercent('Downloading', 42)
+    osc.done()
+    expect(writes[1]).toBe(`${OSC_PROGRESS_PREFIX}1;100;Downloading${OSC_PROGRESS_ST}`)
+
+    vi.advanceTimersByTime(200)
+    expect(writes[2]).toBe(`${OSC_PROGRESS_PREFIX}0;0;Downloading${OSC_PROGRESS_ST}`)
+    vi.useRealTimers()
+  })
+
+  test('done refresh clears pending clear timer', () => {
+    vi.useFakeTimers()
+    const clearSpy = vi.spyOn(global, 'clearTimeout')
+    const osc = createOscProgressController({
+      env: { TERM_PROGRAM: 'wezterm' },
+      isTty: true,
+      clearDelayMs: 500,
+      write: () => {},
+    })
+
+    osc.setPercent('Downloading', 1)
+    osc.done()
+    osc.done()
+    expect(clearSpy).toHaveBeenCalled()
+
+    clearSpy.mockRestore()
+    vi.useRealTimers()
+  })
+
+  test('fail emits error then clears after delay', () => {
+    vi.useFakeTimers()
+    const writes: string[] = []
+    const osc = createOscProgressController({
+      env: { TERM_PROGRAM: 'wezterm' },
+      isTty: true,
+      clearDelayMs: 200,
+      write: (data) => writes.push(data),
+    })
+
+    osc.setPercent('Downloading', 42)
+    osc.fail()
+    expect(writes[1]).toBe(`${OSC_PROGRESS_PREFIX}2;42;Downloading${OSC_PROGRESS_ST}`)
+
+    vi.advanceTimersByTime(200)
+    expect(writes[2]).toBe(`${OSC_PROGRESS_PREFIX}0;0;Downloading${OSC_PROGRESS_ST}`)
+    vi.useRealTimers()
+  })
+
+  test('fail in indeterminate mode omits percent', () => {
+    const writes: string[] = []
+    const osc = createOscProgressController({
+      env: { TERM_PROGRAM: 'wezterm' },
+      isTty: true,
+      clearDelayMs: 0,
+      write: (data) => writes.push(data),
+    })
+
+    osc.setIndeterminate('Waiting')
+    osc.fail()
+    expect(writes[1]).toBe(`${OSC_PROGRESS_PREFIX}2;;Waiting${OSC_PROGRESS_ST}`)
+  })
+
+  test('autoClearOnExit clears progress', () => {
+    const writes: string[] = []
+    let exitHandler: (() => void) | undefined
+    const onceSpy = vi.spyOn(process, 'once').mockImplementation((event, handler) => {
+      if (event === 'exit') {
+        exitHandler = handler as () => void
+      }
+      return process
+    })
+    try {
+      const osc = createOscProgressController({
+        env: { TERM_PROGRAM: 'wezterm' },
+        isTty: true,
+        autoClearOnExit: true,
+        write: (data) => writes.push(data),
+      })
+
+      osc.setPercent('Downloading', 1)
+      exitHandler?.()
+
+      expect(writes.at(-1)).toBe(`${OSC_PROGRESS_PREFIX}0;0;Downloading${OSC_PROGRESS_ST}`)
+    } finally {
+      onceSpy.mockRestore()
+    }
+  })
+
+  test('setPaused emits paused state', () => {
+    const writes: string[] = []
+    const osc = createOscProgressController({
+      env: { TERM_PROGRAM: 'wezterm' },
+      isTty: true,
+      write: (data) => writes.push(data),
+    })
+
+    osc.setPercent('Downloading', 12)
+    osc.setPaused('Paused')
+
+    expect(writes[1]).toBe(`${OSC_PROGRESS_PREFIX}4;12;Paused${OSC_PROGRESS_ST}`)
+  })
+
+  test('setPaused without determinate progress emits indeterminate pause', () => {
+    const writes: string[] = []
+    const osc = createOscProgressController({
+      env: { TERM_PROGRAM: 'wezterm' },
+      isTty: true,
+      write: (data) => writes.push(data),
+    })
+
+    osc.setIndeterminate('Waiting')
+    osc.setPaused('Paused')
+
+    expect(writes[1]).toBe(`${OSC_PROGRESS_PREFIX}4;;Paused${OSC_PROGRESS_ST}`)
+  })
+
+  test('stalledLabel supports custom string', () => {
+    vi.useFakeTimers()
+    const writes: string[] = []
+    const osc = createOscProgressController({
+      env: { TERM_PROGRAM: 'wezterm' },
+      isTty: true,
+      stallAfterMs: 500,
+      stalledLabel: 'Hold',
+      write: (data) => writes.push(data),
+    })
+
+    osc.setPercent('Downloading', 1)
+    vi.advanceTimersByTime(500)
+    expect(writes[1]).toBe(`${OSC_PROGRESS_PREFIX}4;1;Hold${OSC_PROGRESS_ST}`)
+    vi.useRealTimers()
+  })
+
+  test('stalledLabel supports formatter', () => {
+    vi.useFakeTimers()
+    const writes: string[] = []
+    const osc = createOscProgressController({
+      env: { TERM_PROGRAM: 'wezterm' },
+      isTty: true,
+      stallAfterMs: 500,
+      stalledLabel: (label) => `Hold ${label}`,
+      write: (data) => writes.push(data),
+    })
+
+    osc.setPercent('Downloading', 1)
+    vi.advanceTimersByTime(500)
+    expect(writes[1]).toBe(`${OSC_PROGRESS_PREFIX}4;1;Hold Downloading${OSC_PROGRESS_ST}`)
+    vi.useRealTimers()
+  })
+
+  test('label changes bypass throttle', () => {
+    const writes: string[] = []
+    const osc = createOscProgressController({
+      env: { TERM_PROGRAM: 'wezterm' },
+      isTty: true,
+      write: (data) => writes.push(data),
+    })
+
+    osc.setPercent('Downloading', 1)
+    osc.setPercent('Transcoding', 1)
+    expect(writes).toHaveLength(2)
+  })
+
+  test('done clears immediately when clearDelayMs is 0', () => {
+    const writes: string[] = []
+    const osc = createOscProgressController({
+      env: { TERM_PROGRAM: 'wezterm' },
+      isTty: true,
+      clearDelayMs: 0,
+      write: (data) => writes.push(data),
+    })
+
+    osc.setPercent('Downloading', 10)
+    osc.done()
+    expect(writes[1]).toBe(`${OSC_PROGRESS_PREFIX}1;100;Downloading${OSC_PROGRESS_ST}`)
+    expect(writes[2]).toBe(`${OSC_PROGRESS_PREFIX}0;0;Downloading${OSC_PROGRESS_ST}`)
+  })
+
+  test('done cancels stall timer', () => {
+    vi.useFakeTimers()
+    const writes: string[] = []
+    const osc = createOscProgressController({
+      env: { TERM_PROGRAM: 'wezterm' },
+      isTty: true,
+      stallAfterMs: 500,
+      clearDelayMs: 0,
+      write: (data) => writes.push(data),
+    })
+
+    osc.setPercent('Downloading', 10)
+    osc.done()
+    vi.advanceTimersByTime(500)
+    expect(writes.some((write) => write.startsWith(`${OSC_PROGRESS_PREFIX}4;`))).toBe(false)
+    vi.useRealTimers()
+  })
+
+  test('stall timer skips emit when paused', () => {
+    vi.useFakeTimers()
+    const writes: string[] = []
+    const osc = createOscProgressController({
+      env: { TERM_PROGRAM: 'wezterm' },
+      isTty: true,
+      stallAfterMs: 500,
+      write: (data) => writes.push(data),
+    })
+
+    osc.setPercent('Downloading', 10)
+    osc.setPaused('Paused')
+    const writesAfterPause = writes.length
+    vi.advanceTimersByTime(500)
+    expect(writes).toHaveLength(writesAfterPause)
+    vi.useRealTimers()
+  })
+
+  test('clear cancels pending delayed clear', () => {
+    vi.useFakeTimers()
+    const writes: string[] = []
+    const osc = createOscProgressController({
+      env: { TERM_PROGRAM: 'wezterm' },
+      isTty: true,
+      clearDelayMs: 500,
+      write: (data) => writes.push(data),
+    })
+
+    osc.setPercent('Downloading', 10)
+    osc.done()
+    osc.clear()
+    const writesAfterClear = writes.length
+    vi.advanceTimersByTime(500)
+    expect(writes).toHaveLength(writesAfterClear)
+    vi.useRealTimers()
+  })
+
+  test('dispose removes exit listener', () => {
+    const writes: string[] = []
+    let exitHandler: (() => void) | undefined
+    const onceSpy = vi.spyOn(process, 'once').mockImplementation((event, handler) => {
+      if (event === 'exit') {
+        exitHandler = handler as () => void
+      }
+      return process
+    })
+    const offSpy = vi.spyOn(process, 'off')
+
+    try {
+      const osc = createOscProgressController({
+        env: { TERM_PROGRAM: 'wezterm' },
+        isTty: true,
+        autoClearOnExit: true,
+        write: (data) => writes.push(data),
+      })
+
+      osc.dispose()
+      expect(offSpy).toHaveBeenCalledWith('exit', exitHandler)
+    } finally {
+      onceSpy.mockRestore()
+      offSpy.mockRestore()
     }
   })
 })

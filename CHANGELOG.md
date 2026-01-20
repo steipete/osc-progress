@@ -1,13 +1,16 @@
 # Changelog
 All notable changes to this project are documented in this file.
 
-## 0.2.1 - Unreleased
+## 0.3.0 - Unreleased
 ### Added
-- (none)
+- Throttled/deduped OSC progress updates (default).
+- Stalled/paused state support (`setPaused`, `stallAfterMs`).
+- Completion/error helpers (`done`, `fail`) with delayed clear (`clearDelayMs`).
+- Optional auto-clear on process exit (`autoClearOnExit`).
+- Controller cleanup via `dispose()`.
 ### Changed
-- (none)
-### Fixed
-- (none)
+- `createOscProgressController` now returns an extended controller with pause/done/fail helpers.
+- Controller updates are throttled by default (behavior change).
 
 ## 0.2.0 - 2025-12-25
 ### Added

@@ -1,6 +1,6 @@
 # ⏳ osc-progress — Tiny lib for OSC 9;4 terminal progress.
 
-Tiny TypeScript helper for **OSC 9;4** terminal progress sequences (used by terminals like Ghostty / WezTerm / Windows Terminal).
+Tiny TypeScript helper for **OSC 9;4** terminal progress (Ghostty / WezTerm / Windows Terminal).
 
 ## Install
 
@@ -72,7 +72,11 @@ Notes:
 Returns a small stateful controller:
 - `setIndeterminate(label)`
 - `setPercent(label, percent)`
+- `setPaused(label)` (state `4`)
+- `done(label?)` (emit 100% then clear)
+- `fail(label?)` (emit error state then clear)
 - `clear()`
+- `dispose()` (cleanup timers/listeners)
 
 Use this when you already have real progress (bytes/total, seconds/total) and want determinate terminal progress instead of the timer-based ramp.
 
@@ -80,6 +84,10 @@ Notes:
 - returns no-op methods when `supportsOscProgress(...)` is false
 - `percent` is rounded and clamped to `0..100`
 - `clear()` uses the last label (or the initial `options.label` if nothing was set yet)
+- progress updates are throttled by default (deduped + max ~1 update/150ms)
+- `stallAfterMs` emits a paused/stalled state when updates stop
+- `clearDelayMs` controls how long `done()` / `fail()` wait before clearing
+- `autoClearOnExit` clears on process exit
 
 ```ts
 import process from 'node:process'
@@ -89,13 +97,23 @@ const osc = createOscProgressController({
   env: process.env,
   isTty: process.stderr.isTTY,
   write: (chunk) => process.stderr.write(chunk),
+  stallAfterMs: 10_000,
+  clearDelayMs: 200,
+  autoClearOnExit: true,
 })
 
 osc.setIndeterminate('Connecting')
 osc.setPercent('Downloading', 12)
 osc.setPercent('Downloading', 67)
-osc.clear()
+osc.done()
 ```
+
+#### Controller options
+
+- `stallAfterMs`: emit state=4 when no updates are seen within this window.
+- `stalledLabel`: override stalled label (string or formatter).
+- `clearDelayMs`: delay before `done()`/`fail()` clears.
+- `autoClearOnExit`: clear progress on process exit.
 
 ### `sanitizeOscProgress(text, keepOsc)`
 

@@ -15,6 +15,9 @@ export const OSC_PROGRESS_BEL = '\u0007'
 /** C1 String Terminator (ST): `0x9c` */
 export const OSC_PROGRESS_C1_ST = '\u009c'
 
+const DEFAULT_THROTTLE_INTERVAL_MS = 150
+const DEFAULT_CLEAR_DELAY_MS = 150
+
 /** How to terminate the OSC sequence when emitting. */
 export type OscProgressTerminator = 'st' | 'bel'
 
@@ -60,6 +63,23 @@ export interface OscProgressOptions extends OscProgressSupportOptions {
   terminator?: OscProgressTerminator
 }
 
+export interface OscProgressControllerOptions extends OscProgressOptions {
+  /**
+   * Emit a stalled state when no updates arrive within this window.
+   * Set to 0 to disable (default).
+   */
+  stallAfterMs?: number
+  /** Customize the stalled label or formatter. Defaults to appending " (stalled)". */
+  stalledLabel?: string | ((label: string) => string)
+  /**
+   * Delay (ms) between done/fail and clearing the progress indicator.
+   * Set to 0 for immediate clear.
+   */
+  clearDelayMs?: number
+  /** Clear progress on process exit. */
+  autoClearOnExit?: boolean
+}
+
 export interface OscProgressSequence {
   /** Inclusive start index in the input string. */
   start: number
@@ -82,6 +102,17 @@ export type OscProgressController = {
   setPercent: (label: string, percent: number) => void
   /** Clear/hide the progress indicator. */
   clear: () => void
+}
+
+export type OscProgressReporter = OscProgressController & {
+  /** Emit a paused/stalled progress indicator (state=4). */
+  setPaused: (label: string) => void
+  /** Emit 100% then clear after the configured delay. */
+  done: (label?: string) => void
+  /** Emit error state then clear after the configured delay. */
+  fail: (label?: string) => void
+  /** Dispose timers/listeners created by this controller. */
+  dispose: () => void
 }
 
 /**
@@ -297,48 +328,211 @@ export function startOscProgress(options: OscProgressOptions = {}): () => void {
  * - `clear()` emits `state=0` using the last label
  */
 export function createOscProgressController(
-  options: OscProgressOptions = {}
-): OscProgressController {
+  options: OscProgressControllerOptions = {}
+): OscProgressReporter {
   // Default to stderr: progress belongs with other interactive output and avoids polluting stdout pipes.
-  const { label = 'Working…', write = (text) => process.stderr.write(text), terminator } = options
+  const {
+    label = 'Working…',
+    write = (text) => process.stderr.write(text),
+    terminator,
+    stallAfterMs = 0,
+    stalledLabel,
+    clearDelayMs = DEFAULT_CLEAR_DELAY_MS,
+    autoClearOnExit = false,
+  } = options
 
   if (!supportsOscProgress(options.env, options.isTty, options)) {
     // No-op controller: callers can keep their code linear and still be safe in unsupported terminals/logs.
-    return { setIndeterminate: () => {}, setPercent: () => {}, clear: () => {} }
+    return {
+      setIndeterminate: () => {},
+      setPercent: () => {},
+      setPaused: () => {},
+      done: () => {},
+      fail: () => {},
+      clear: () => {},
+      dispose: () => {},
+    }
   }
 
   // Resolve once; avoids branching in hot paths.
   const end = resolveTerminator(terminator)
 
-  const send = (state: number, percent: number | null, nextLabel: string) => {
-    // Always sanitize; labels often come from user-visible input (filenames/URLs) and must not break OSC.
-    const cleanLabel = sanitizeLabel(nextLabel)
-    if (percent == null) {
-      write(`${OSC_PROGRESS_PREFIX}${state};;${cleanLabel}${end}`)
+  const resolveStalledLabel = (baseLabel: string): string => {
+    if (typeof stalledLabel === 'function') return stalledLabel(baseLabel)
+    if (typeof stalledLabel === 'string') return stalledLabel
+    return `${baseLabel} (stalled)`
+  }
+
+  const normalizePercent = (percent: number): number =>
+    Math.max(0, Math.min(100, Math.round(percent)))
+
+  let lastEmittedLabel = label
+  let lastEmittedPercent: number | null = null
+  let lastEmittedState: number | null = null
+  let lastEmitAt = 0
+  let hasEmitted = false
+
+  let lastSeenLabel = label
+  let lastSeenPercent = 0
+  let lastSeenMode: 'determinate' | 'indeterminate' = 'indeterminate'
+
+  let stallTimer: NodeJS.Timeout | null = null
+  let clearTimer: NodeJS.Timeout | null = null
+  let stallEnabled = true
+
+  const clearStallTimer = () => {
+    if (stallTimer !== null) {
+      clearTimeout(stallTimer)
+      stallTimer = null
+    }
+  }
+
+  const clearTimers = () => {
+    clearStallTimer()
+    if (clearTimer !== null) {
+      clearTimeout(clearTimer)
+      clearTimer = null
+    }
+  }
+
+  const scheduleStall = () => {
+    if (!stallAfterMs || stallAfterMs <= 0) return
+    if (stallTimer !== null) clearTimeout(stallTimer)
+    stallTimer = setTimeout(() => {
+      stallTimer = null
+      if (!stallEnabled) return
+      const labelToUse = resolveStalledLabel(lastSeenLabel)
+      const percent = lastSeenMode === 'determinate' ? lastSeenPercent : null
+      send(4, percent, labelToUse, true)
+    }, stallAfterMs)
+    stallTimer.unref?.()
+  }
+
+  const scheduleClear = () => {
+    if (clearDelayMs <= 0) {
+      clear()
       return
     }
-    // Be forgiving: accept floats/out-of-range and normalize to the OSC percent integer field.
-    const clamped = Math.max(0, Math.min(100, Math.round(percent)))
-    write(`${OSC_PROGRESS_PREFIX}${state};${clamped};${cleanLabel}${end}`)
+    if (clearTimer !== null) clearTimeout(clearTimer)
+    clearTimer = setTimeout(() => {
+      clearTimer = null
+      clear()
+    }, clearDelayMs)
+    clearTimer.unref?.()
+  }
+
+  const send = (state: number, percent: number | null, nextLabel: string, force = false) => {
+    // Always sanitize; labels often come from user-visible input (filenames/URLs) and must not break OSC.
+    const cleanLabel = sanitizeLabel(nextLabel)
+    const normalizedPercent = percent == null ? null : normalizePercent(percent)
+    const now = Date.now()
+    const stateChanged = state !== lastEmittedState
+    const labelChanged = cleanLabel !== lastEmittedLabel
+    const percentChanged = normalizedPercent !== lastEmittedPercent
+    const withinInterval = now - lastEmitAt < DEFAULT_THROTTLE_INTERVAL_MS
+
+    let shouldEmit = force || !hasEmitted || stateChanged || labelChanged
+    if (!shouldEmit && percentChanged) {
+      shouldEmit = !withinInterval
+    }
+    if (!shouldEmit) return
+
+    if (normalizedPercent == null) {
+      write(`${OSC_PROGRESS_PREFIX}${state};;${cleanLabel}${end}`)
+    } else {
+      write(`${OSC_PROGRESS_PREFIX}${state};${normalizedPercent};${cleanLabel}${end}`)
+    }
+    lastEmittedLabel = cleanLabel
+    lastEmittedPercent = normalizedPercent
+    lastEmittedState = state
+    lastEmitAt = now
+    hasEmitted = true
   }
 
   // Remember the last user-provided label so `clear()` clears the most recent task label.
-  let lastLabel = label
-
-  return {
-    setIndeterminate: (nextLabel) => {
-      // Update label first so a `clear()` during/after this call uses the same label.
-      lastLabel = nextLabel
-      send(3, null, nextLabel)
-    },
-    setPercent: (nextLabel, percent) => {
-      // Same label tracking semantics as indeterminate mode.
-      lastLabel = nextLabel
-      send(1, percent, nextLabel)
-    },
-    clear: () => {
-      // Clear/hide frame. Reuses the last label so terminals that show it don't "flash" back to defaults.
-      send(0, 0, lastLabel)
-    },
+  const updateSeen = (
+    nextLabel: string,
+    mode: 'determinate' | 'indeterminate',
+    percent: number | null,
+    shouldScheduleStall = true
+  ) => {
+    lastSeenLabel = nextLabel
+    lastSeenMode = mode
+    lastSeenPercent = percent ?? 0
+    if (shouldScheduleStall) {
+      scheduleStall()
+    }
   }
+
+  const setIndeterminate = (nextLabel: string) => {
+    stallEnabled = true
+    updateSeen(nextLabel, 'indeterminate', null)
+    send(3, null, nextLabel)
+  }
+
+  const setPercent = (nextLabel: string, percent: number) => {
+    const normalized = normalizePercent(percent)
+    stallEnabled = true
+    updateSeen(nextLabel, 'determinate', normalized)
+    send(1, normalized, nextLabel)
+  }
+
+  const setPaused = (nextLabel: string) => {
+    stallEnabled = false
+    const percent = lastSeenMode === 'determinate' ? lastSeenPercent : null
+    updateSeen(
+      nextLabel,
+      lastSeenMode,
+      lastSeenMode === 'determinate' ? lastSeenPercent : null,
+      false
+    )
+    send(4, percent, nextLabel, true)
+  }
+
+  const clear = () => {
+    stallEnabled = false
+    clearTimers()
+    send(0, 0, lastSeenLabel, true)
+  }
+
+  const done = (nextLabel?: string) => {
+    const labelToUse = nextLabel ?? lastSeenLabel
+    stallEnabled = false
+    clearStallTimer()
+    updateSeen(labelToUse, 'determinate', 100, false)
+    send(1, 100, labelToUse, true)
+    scheduleClear()
+  }
+
+  const fail = (nextLabel?: string) => {
+    const labelToUse = nextLabel ?? lastSeenLabel
+    const percent = lastSeenMode === 'determinate' ? lastSeenPercent : null
+    stallEnabled = false
+    clearStallTimer()
+    updateSeen(
+      labelToUse,
+      lastSeenMode,
+      lastSeenMode === 'determinate' ? lastSeenPercent : null,
+      false
+    )
+    send(2, percent, labelToUse, true)
+    scheduleClear()
+  }
+
+  const handleExit = () => {
+    clear()
+  }
+
+  if (autoClearOnExit) {
+    process.once('exit', handleExit)
+  }
+
+  const dispose = () => {
+    clearTimers()
+    if (autoClearOnExit) {
+      process.off('exit', handleExit)
+    }
+  }
+
+  return { setIndeterminate, setPercent, setPaused, done, fail, clear, dispose }
 }
