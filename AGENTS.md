@@ -44,4 +44,3 @@ This repo uses Node.js `>= 20` and `pnpm` (see `package.json`).
   - add/update tests and docs when behavior/API changes
   - keep artifacts out of git (`dist/`, `coverage/`)
   - must be green on `pnpm check`
-

@@ -2,26 +2,33 @@
   "name": "osc-progress",
   "version": "0.3.0",
   "description": "Tiny TypeScript helper for OSC 9;4 terminal progress sequences.",
+  "keywords": [
+    "cli",
+    "ghostty",
+    "osc",
+    "progress",
+    "terminal",
+    "wezterm",
+    "windows-terminal"
+  ],
+  "homepage": "https://github.com/steipete/osc-progress#readme",
+  "bugs": {
+    "url": "https://github.com/steipete/osc-progress/issues"
+  },
   "license": "MIT",
   "author": "Peter Steinberger",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/steipete/osc-progress.git"
   },
-  "homepage": "https://github.com/steipete/osc-progress#readme",
-  "bugs": {
-    "url": "https://github.com/steipete/osc-progress/issues"
-  },
-  "keywords": [
-    "osc",
-    "terminal",
-    "progress",
-    "cli",
-    "ghostty",
-    "wezterm",
-    "windows-terminal"
+  "files": [
+    "dist",
+    "CHANGELOG.md",
+    "README.md",
+    "LICENSE"
   ],
   "type": "module",
+  "sideEffects": false,
   "main": "./dist/esm/index.js",
   "module": "./dist/esm/index.js",
   "types": "./dist/types/index.d.ts",
@@ -31,35 +38,30 @@
       "import": "./dist/esm/index.js"
     }
   },
-  "files": [
-    "dist",
-    "CHANGELOG.md",
-    "README.md",
-    "LICENSE"
-  ],
-  "engines": {
-    "node": ">=20"
-  },
-  "sideEffects": false,
-  "packageManager": "pnpm@10.25.0",
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "prepare": "pnpm build",
     "prepack": "pnpm build",
     "prepublishOnly": "pnpm check",
-    "typecheck": "tsc -p tsconfig.build.json --noEmit",
-    "format": "biome format --write .",
-    "lint": "biome check .",
-    "lint:fix": "biome check --write .",
+    "typecheck": "tsgo -p tsconfig.build.json --noEmit",
+    "format": "oxfmt --write .",
+    "format:check": "oxfmt --check .",
+    "lint": "pnpm format:check && oxlint --deny-warnings src tests",
+    "lint:fix": "pnpm format && oxlint --fix src tests",
     "test": "pnpm build && vitest run",
     "test:coverage": "pnpm build && vitest run --coverage",
-    "check": "pnpm lint && pnpm test:coverage"
+    "check": "pnpm lint && pnpm typecheck && pnpm test:coverage"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.3.10",
-    "@types/node": "^25.0.3",
-    "@vitest/coverage-v8": "^4.0.16",
-    "typescript": "^5.9.3",
-    "vitest": "^4.0.16"
-  }
+    "@types/node": "^25.6.0",
+    "@vitest/coverage-v8": "^4.1.5",
+    "oxfmt": "^0.46.0",
+    "oxlint": "^1.61.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.5"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@10.25.0"
 }

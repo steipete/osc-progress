@@ -17,4 +17,4 @@ export {
   startOscProgress,
   stripOscProgress,
   supportsOscProgress,
-} from './oscProgress.js'
+} from "./oscProgress.js";

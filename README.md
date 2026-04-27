@@ -11,37 +11,37 @@ pnpm add osc-progress
 ## Usage
 
 ```ts
-import process from 'node:process'
-import { startOscProgress } from 'osc-progress'
+import process from "node:process";
+import { startOscProgress } from "osc-progress";
 
 const stop = startOscProgress({
-  label: 'Fetching',
+  label: "Fetching",
   write: (chunk) => process.stderr.write(chunk),
   env: process.env,
   isTty: process.stderr.isTTY,
-})
+});
 
 // ...do work...
 
-stop()
+stop();
 ```
 
 Indeterminate (spinner-like) mode:
 
 ```ts
-import { startOscProgress } from 'osc-progress'
+import { startOscProgress } from "osc-progress";
 
-const stop = startOscProgress({ label: 'Waiting', indeterminate: true })
+const stop = startOscProgress({ label: "Waiting", indeterminate: true });
 // ...
-stop()
+stop();
 ```
 
 Strip OSC progress from stored logs:
 
 ```ts
-import { sanitizeOscProgress } from 'osc-progress'
+import { sanitizeOscProgress } from "osc-progress";
 
-const clean = sanitizeOscProgress(text, /*keepOsc*/ process.stdout.isTTY)
+const clean = sanitizeOscProgress(text, /*keepOsc*/ process.stdout.isTTY);
 ```
 
 ## API
@@ -51,10 +51,12 @@ const clean = sanitizeOscProgress(text, /*keepOsc*/ process.stdout.isTTY)
 Returns `true` when emitting OSC 9;4 progress makes sense.
 
 Heuristics:
+
 - requires a TTY
 - enables for `TERM_PROGRAM=ghostty*`, `TERM_PROGRAM=wezterm*`, or `WT_SESSION` (Windows Terminal)
 
 Optional overrides:
+
 - `options.disabled` / `options.force`
 - `options.disableEnvVar` / `options.forceEnvVar` (expects `= "1"`)
 
@@ -63,6 +65,7 @@ Optional overrides:
 Starts a best-effort progress indicator and returns `stop(): void`.
 
 Notes:
+
 - `label` is appended as extra payload; **not part of the canonical OSC 9;4 spec** (many terminals ignore it, some show it).
 - default is a timer-driven `0% → 99%` progression (never completes by itself).
 - `terminator` defaults to `st` (`ESC \\`); `bel` is also supported.
@@ -70,6 +73,7 @@ Notes:
 ### `createOscProgressController(options?)`
 
 Returns a small stateful controller:
+
 - `setIndeterminate(label)`
 - `setPercent(label, percent)`
 - `setPaused(label)` (state `4`)
@@ -81,6 +85,7 @@ Returns a small stateful controller:
 Use this when you already have real progress (bytes/total, seconds/total) and want determinate terminal progress instead of the timer-based ramp.
 
 Notes:
+
 - returns no-op methods when `supportsOscProgress(...)` is false
 - `percent` is rounded and clamped to `0..100`
 - `clear()` uses the last label (or the initial `options.label` if nothing was set yet)
@@ -90,8 +95,8 @@ Notes:
 - `autoClearOnExit` clears on process exit
 
 ```ts
-import process from 'node:process'
-import { createOscProgressController } from 'osc-progress'
+import process from "node:process";
+import { createOscProgressController } from "osc-progress";
 
 const osc = createOscProgressController({
   env: process.env,
@@ -100,12 +105,12 @@ const osc = createOscProgressController({
   stallAfterMs: 10_000,
   clearDelayMs: 200,
   autoClearOnExit: true,
-})
+});
 
-osc.setIndeterminate('Connecting')
-osc.setPercent('Downloading', 12)
-osc.setPercent('Downloading', 67)
-osc.done()
+osc.setIndeterminate("Connecting");
+osc.setPercent("Downloading", 12);
+osc.setPercent("Downloading", 67);
+osc.done();
 ```
 
 #### Controller options
