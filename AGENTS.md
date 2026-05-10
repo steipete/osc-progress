@@ -10,7 +10,7 @@
 
 ## Build, Test, and Development Commands
 
-This repo uses Node.js `>= 20` and `pnpm` (see `package.json`).
+This repo uses Node.js `>= 24` and `pnpm` (see `package.json`).
 
 - `pnpm install`: install deps.
 - `pnpm build`: compile TypeScript into `dist/`.
@@ -44,4 +44,3 @@ This repo uses Node.js `>= 20` and `pnpm` (see `package.json`).
   - add/update tests and docs when behavior/API changes
   - keep artifacts out of git (`dist/`, `coverage/`)
   - must be green on `pnpm check`
-
