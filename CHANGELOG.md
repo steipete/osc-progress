@@ -17,6 +17,11 @@ All notable changes to this project are documented in this file.
 - `createOscProgressController` now returns an extended controller with pause/done/fail helpers.
 - Controller updates are throttled by default (behavior change).
 
+### Fixed
+
+- Add a package export `default` condition so CJS-style resolvers can find the ESM entrypoint.
+  (`#8`, thanks `@grimmjoww`)
+
 ## 0.2.0 - 2025-12-25
 
 ### Added
