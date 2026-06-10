@@ -2,7 +2,14 @@
 
 All notable changes to this project are documented in this file.
 
-## 0.3.0 - Unreleased
+## 0.3.1 - 2026-06-10
+
+### Fixed
+
+- Add a package export `default` condition so CJS-style resolvers can find the ESM entrypoint. (`#8`, thanks `@grimmjoww`)
+- Strip control characters from OSC progress labels so labels cannot break emitted progress sequences. (`#15`, thanks `@devYRPauli`)
+
+## 0.3.0 - 2026-01-20
 
 ### Added
 
@@ -16,12 +23,6 @@ All notable changes to this project are documented in this file.
 
 - `createOscProgressController` now returns an extended controller with pause/done/fail helpers.
 - Controller updates are throttled by default (behavior change).
-
-### Fixed
-
-- Add a package export `default` condition so CJS-style resolvers can find the ESM entrypoint.
-  (`#8`, thanks `@grimmjoww`)
-- Strip control characters from OSC progress labels so labels cannot break emitted progress sequences. (`#15`, thanks `@devYRPauli`)
 
 ## 0.2.0 - 2025-12-25
 
