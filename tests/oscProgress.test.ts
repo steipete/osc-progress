@@ -20,7 +20,11 @@ describe("sanitizeLabel", () => {
   });
 
   test("strips interior control characters that would break the OSC sequence", () => {
-    expect(sanitizeLabel("a\nb\rc\td")).toBe("abcd");
+    const c0Controls = Array.from({ length: 0x20 }, (_, code) => String.fromCodePoint(code)).join(
+      "",
+    );
+
+    expect(sanitizeLabel(`a${c0Controls}\u007fb`)).toBe("ab");
     expect(sanitizeLabel("download\nrm -rf")).toBe("downloadrm -rf");
     expect(sanitizeLabel("plain label")).toBe("plain label");
   });
