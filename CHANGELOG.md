@@ -21,6 +21,7 @@ All notable changes to this project are documented in this file.
 
 - Add a package export `default` condition so CJS-style resolvers can find the ESM entrypoint.
   (`#8`, thanks `@grimmjoww`)
+- Strip control characters from OSC progress labels so labels cannot break emitted progress sequences. (`#15`, thanks `@devYRPauli`)
 
 ## 0.2.0 - 2025-12-25
 

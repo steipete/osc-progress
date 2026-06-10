@@ -125,7 +125,15 @@ export function sanitizeLabel(label: string): string {
   const withoutTerminators = withoutEscape
     .replaceAll(OSC_PROGRESS_BEL, "")
     .replaceAll(OSC_PROGRESS_C1_ST, "");
-  return withoutTerminators.replaceAll("]", "").trim();
+  // Strip remaining C0 controls and DEL; a bare newline/CR/tab inside the
+  // payload would otherwise terminate or garble the surrounding OSC sequence.
+  const withoutControls = [...withoutTerminators]
+    .filter((ch) => {
+      const code = ch.codePointAt(0) ?? 0;
+      return code > 0x1f && code !== 0x7f;
+    })
+    .join("");
+  return withoutControls.replaceAll("]", "").trim();
 }
 
 /**

@@ -18,6 +18,16 @@ describe("sanitizeLabel", () => {
     const label = `Load\u001b[31m  file${OSC_PROGRESS_ST}${OSC_PROGRESS_BEL}${OSC_PROGRESS_C1_ST}]`;
     expect(sanitizeLabel(label)).toBe("Load[31m  file");
   });
+
+  test("strips interior control characters that would break the OSC sequence", () => {
+    const c0Controls = Array.from({ length: 0x20 }, (_, code) => String.fromCodePoint(code)).join(
+      "",
+    );
+
+    expect(sanitizeLabel(`a${c0Controls}\u007fb`)).toBe("ab");
+    expect(sanitizeLabel("download\nrm -rf")).toBe("downloadrm -rf");
+    expect(sanitizeLabel("plain label")).toBe("plain label");
+  });
 });
 
 describe("supportsOscProgress", () => {
