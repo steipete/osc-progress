@@ -54,10 +54,10 @@
     "check": "pnpm lint && pnpm typecheck && pnpm test:coverage"
   },
   "devDependencies": {
-    "@types/node": "^25.6.0",
-    "@typescript/native-preview": "7.0.0-dev.20260612.1",
+    "@types/node": "^26.0.0",
+    "@typescript/native-preview": "7.0.0-dev.20260619.1",
     "@vitest/coverage-v8": "^4.1.5",
-    "oxfmt": "^0.54.0",
+    "oxfmt": "^0.55.0",
     "oxlint": "^1.62.0",
     "postcss": "^8.5.13",
     "typescript": "^6.0.3",
