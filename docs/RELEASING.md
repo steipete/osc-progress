@@ -45,10 +45,13 @@ Rule: every release = **npm publish + git tag + GitHub release** (always do all 
   - `git push origin v<version>`
 - [ ] Create GitHub release for tag `v<version>`:
   - title = `<version>` (just the version)
-  - body = changelog bullets for that version
-  - `gh release create v<version> --title "<version>" --notes "<paste bullets>"`
+  - write the changelog bullets and release proof to `/tmp/osc-progress-release.md`, then inspect it
+  - `gh release create v<version> --title "<version>" --notes-file /tmp/osc-progress-release.md`
 
 ## 6) Verify (post)
 
-- [ ] `npm view osc-progress time --json`
-- [ ] `gh release view v<version>`
+- [ ] `npm view osc-progress@<version> version dist-tags dist.tarball dist.integrity time --json`
+- [ ] Confirm `latest`, tarball, integrity, and publish time all match the published version.
+- [ ] Confirm GitHub tag + Release exist and point to the published commit.
+- [ ] Confirm the Release body contains the changelog notes plus links to the npm version page, registry tarball, integrity, and CI/proof.
+- [ ] Open the next patch section as `Unreleased`, commit, and push the release closeout.
