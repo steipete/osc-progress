@@ -67,6 +67,7 @@ Starts a best-effort progress indicator and returns `stop(): void`.
 Notes:
 
 - `label` is appended as extra payload; **not part of the canonical OSC 9;4 spec** (many terminals ignore it, some show it).
+- default output and TTY detection both use stderr.
 - default is a timer-driven `0% → 99%` progression (never completes by itself).
 - `terminator` defaults to `st` (`ESC \\`); `bel` is also supported.
 

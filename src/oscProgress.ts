@@ -46,7 +46,7 @@ export interface OscProgressOptions extends OscProgressSupportOptions {
   write?: (data: string) => void;
   /** Environment lookup (defaults to `process.env`). */
   env?: NodeJS.ProcessEnv;
-  /** TTY flag (defaults to `process.stdout.isTTY`). */
+  /** TTY flag (defaults to `process.stderr.isTTY`, matching the default writer). */
   isTty?: boolean;
   /** When true, emit an indeterminate progress indicator (no percentage). */
   indeterminate?: boolean;
@@ -121,19 +121,15 @@ export type OscProgressReporter = OscProgressController & {
  */
 export function sanitizeLabel(label: string): string {
   const withoutSt = label.replaceAll(OSC_PROGRESS_ST, "");
-  const withoutEscape = withoutSt.split("\u001b").join("");
-  const withoutTerminators = withoutEscape
-    .replaceAll(OSC_PROGRESS_BEL, "")
-    .replaceAll(OSC_PROGRESS_C1_ST, "");
-  // Strip remaining C0 controls and DEL; a bare newline/CR/tab inside the
-  // payload would otherwise terminate or garble the surrounding OSC sequence.
-  const withoutControls = [...withoutTerminators]
+  // Strip C0/C1 controls and DEL. This removes every OSC introducer/terminator
+  // while preserving printable payload characters such as closing brackets.
+  const withoutControls = [...withoutSt]
     .filter((ch) => {
       const code = ch.codePointAt(0) ?? 0;
-      return code > 0x1f && code !== 0x7f;
+      return code > 0x1f && code !== 0x7f && !(code >= 0x80 && code <= 0x9f);
     })
     .join("");
-  return withoutControls.replaceAll("]", "").trim();
+  return withoutControls.trim();
 }
 
 /**
@@ -149,7 +145,7 @@ export function sanitizeLabel(label: string): string {
  */
 export function supportsOscProgress(
   env: NodeJS.ProcessEnv = process.env,
-  isTty: boolean = process.stdout.isTTY,
+  isTty: boolean = process.stderr.isTTY,
   options: OscProgressSupportOptions = {},
 ): boolean {
   if (!isTty) return false;
@@ -286,6 +282,7 @@ export function startOscProgress(options: OscProgressOptions = {}): () => void {
 
   const cleanLabel = sanitizeLabel(label);
   const end = resolveTerminator(terminator);
+  let stopped = false;
 
   const send = (st: number, percent: number | null): void => {
     if (percent == null) {
@@ -299,6 +296,8 @@ export function startOscProgress(options: OscProgressOptions = {}): () => void {
   if (indeterminate) {
     send(3, null);
     return () => {
+      if (stopped) return;
+      stopped = true;
       send(0, 0);
     };
   }
@@ -314,7 +313,6 @@ export function startOscProgress(options: OscProgressOptions = {}): () => void {
   }, 900);
   timer.unref?.();
 
-  let stopped = false;
   return () => {
     if (stopped) return;
     stopped = true;
@@ -371,8 +369,10 @@ export function createOscProgressController(
     return `${baseLabel} (stalled)`;
   };
 
-  const normalizePercent = (percent: number): number =>
-    Math.max(0, Math.min(100, Math.round(percent)));
+  const normalizePercent = (percent: number): number => {
+    if (Number.isNaN(percent)) return 0;
+    return Math.max(0, Math.min(100, Math.round(percent)));
+  };
 
   let lastEmittedLabel = label;
   let lastEmittedPercent: number | null = null;
@@ -388,6 +388,13 @@ export function createOscProgressController(
   let clearTimer: NodeJS.Timeout | null = null;
   let stallEnabled = true;
 
+  const cancelPendingClear = (): boolean => {
+    if (clearTimer === null) return false;
+    clearTimeout(clearTimer);
+    clearTimer = null;
+    return true;
+  };
+
   const clearStallTimer = () => {
     if (stallTimer !== null) {
       clearTimeout(stallTimer);
@@ -397,10 +404,7 @@ export function createOscProgressController(
 
   const clearTimers = () => {
     clearStallTimer();
-    if (clearTimer !== null) {
-      clearTimeout(clearTimer);
-      clearTimer = null;
-    }
+    cancelPendingClear();
   };
 
   const scheduleStall = () => {
@@ -473,19 +477,22 @@ export function createOscProgressController(
   };
 
   const setIndeterminate = (nextLabel: string) => {
+    const resumed = cancelPendingClear();
     stallEnabled = true;
     updateSeen(nextLabel, "indeterminate", null);
-    send(3, null, nextLabel);
+    send(3, null, nextLabel, resumed);
   };
 
   const setPercent = (nextLabel: string, percent: number) => {
+    const resumed = cancelPendingClear();
     const normalized = normalizePercent(percent);
     stallEnabled = true;
     updateSeen(nextLabel, "determinate", normalized);
-    send(1, normalized, nextLabel);
+    send(1, normalized, nextLabel, resumed);
   };
 
   const setPaused = (nextLabel: string) => {
+    cancelPendingClear();
     stallEnabled = false;
     const percent = lastSeenMode === "determinate" ? lastSeenPercent : null;
     updateSeen(

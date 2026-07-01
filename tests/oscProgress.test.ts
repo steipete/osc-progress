@@ -16,15 +16,18 @@ import {
 describe("sanitizeLabel", () => {
   test("removes escape and OSC terminators", () => {
     const label = `Load\u001b[31m  file${OSC_PROGRESS_ST}${OSC_PROGRESS_BEL}${OSC_PROGRESS_C1_ST}]`;
-    expect(sanitizeLabel(label)).toBe("Load[31m  file");
+    expect(sanitizeLabel(label)).toBe("Load[31m  file]");
   });
 
-  test("strips interior control characters that would break the OSC sequence", () => {
+  test("strips C0, C1, and DEL controls that would break the OSC sequence", () => {
     const c0Controls = Array.from({ length: 0x20 }, (_, code) => String.fromCodePoint(code)).join(
       "",
     );
+    const c1Controls = Array.from({ length: 0x20 }, (_, index) =>
+      String.fromCodePoint(0x80 + index),
+    ).join("");
 
-    expect(sanitizeLabel(`a${c0Controls}\u007fb`)).toBe("ab");
+    expect(sanitizeLabel(`a${c0Controls}\u007f${c1Controls}b[ok]`)).toBe("ab[ok]");
     expect(sanitizeLabel("download\nrm -rf")).toBe("downloadrm -rf");
     expect(sanitizeLabel("plain label")).toBe("plain label");
   });
@@ -33,6 +36,25 @@ describe("sanitizeLabel", () => {
 describe("supportsOscProgress", () => {
   test("requires a TTY", () => {
     expect(supportsOscProgress({ TERM_PROGRAM: "ghostty" }, false)).toBe(false);
+  });
+
+  test("defaults to the stderr TTY state", () => {
+    const stdoutDescriptor = Object.getOwnPropertyDescriptor(process.stdout, "isTTY");
+    const stderrDescriptor = Object.getOwnPropertyDescriptor(process.stderr, "isTTY");
+    try {
+      Object.defineProperty(process.stdout, "isTTY", { configurable: true, value: false });
+      Object.defineProperty(process.stderr, "isTTY", { configurable: true, value: true });
+      expect(supportsOscProgress({ TERM_PROGRAM: "ghostty" })).toBe(true);
+
+      Object.defineProperty(process.stdout, "isTTY", { configurable: true, value: true });
+      Object.defineProperty(process.stderr, "isTTY", { configurable: true, value: false });
+      expect(supportsOscProgress({ TERM_PROGRAM: "ghostty" })).toBe(false);
+    } finally {
+      if (stdoutDescriptor) Object.defineProperty(process.stdout, "isTTY", stdoutDescriptor);
+      else Reflect.deleteProperty(process.stdout, "isTTY");
+      if (stderrDescriptor) Object.defineProperty(process.stderr, "isTTY", stderrDescriptor);
+      else Reflect.deleteProperty(process.stderr, "isTTY");
+    }
   });
 
   test("returns false for unknown terminals", () => {
@@ -202,6 +224,25 @@ describe("startOscProgress", () => {
     expect(writes.at(-1)).toBe(`${OSC_PROGRESS_PREFIX}0;0;Fetch${OSC_PROGRESS_ST}`);
   });
 
+  test("indeterminate stop is idempotent", () => {
+    const writes: string[] = [];
+    const stop = startOscProgress({
+      label: "Waiting",
+      indeterminate: true,
+      write: (chunk) => writes.push(chunk),
+      env: { TERM_PROGRAM: "ghostty" },
+      isTty: true,
+    });
+
+    stop();
+    stop();
+
+    expect(writes).toEqual([
+      `${OSC_PROGRESS_PREFIX}3;;Waiting${OSC_PROGRESS_ST}`,
+      `${OSC_PROGRESS_PREFIX}0;0;Waiting${OSC_PROGRESS_ST}`,
+    ]);
+  });
+
   test("uses default write (process.stderr.write) when not provided", () => {
     const writeSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
     try {
@@ -287,11 +328,20 @@ describe("createOscProgressController", () => {
     osc.setPercent("Downloading", -10);
     vi.advanceTimersByTime(200);
     osc.setPercent("Downloading", 9000);
+    vi.advanceTimersByTime(200);
+    osc.setPercent("Downloading", Number.NaN);
+    vi.advanceTimersByTime(200);
+    osc.setPercent("Downloading", Number.POSITIVE_INFINITY);
+    vi.advanceTimersByTime(200);
+    osc.setPercent("Downloading", Number.NEGATIVE_INFINITY);
 
     expect(writes[0]).toBe(`${OSC_PROGRESS_PREFIX}1;12;Downloading${OSC_PROGRESS_ST}`);
     expect(writes[1]).toBe(`${OSC_PROGRESS_PREFIX}1;13;Downloading${OSC_PROGRESS_ST}`);
     expect(writes[2]).toBe(`${OSC_PROGRESS_PREFIX}1;0;Downloading${OSC_PROGRESS_ST}`);
     expect(writes[3]).toBe(`${OSC_PROGRESS_PREFIX}1;100;Downloading${OSC_PROGRESS_ST}`);
+    expect(writes[4]).toBe(`${OSC_PROGRESS_PREFIX}1;0;Downloading${OSC_PROGRESS_ST}`);
+    expect(writes[5]).toBe(`${OSC_PROGRESS_PREFIX}1;100;Downloading${OSC_PROGRESS_ST}`);
+    expect(writes[6]).toBe(`${OSC_PROGRESS_PREFIX}1;0;Downloading${OSC_PROGRESS_ST}`);
     vi.useRealTimers();
   });
 
@@ -305,7 +355,7 @@ describe("createOscProgressController", () => {
 
     osc.setIndeterminate(`Load\u001b[31m file${OSC_PROGRESS_ST}${OSC_PROGRESS_BEL}]`);
 
-    expect(writes[0]).toBe(`${OSC_PROGRESS_PREFIX}3;;Load[31m file${OSC_PROGRESS_ST}`);
+    expect(writes[0]).toBe(`${OSC_PROGRESS_PREFIX}3;;Load[31m file]${OSC_PROGRESS_ST}`);
   });
 
   test("supports BEL terminator", () => {
@@ -434,6 +484,29 @@ describe("createOscProgressController", () => {
 
     vi.advanceTimersByTime(200);
     expect(writes[2]).toBe(`${OSC_PROGRESS_PREFIX}0;0;Downloading${OSC_PROGRESS_ST}`);
+    vi.useRealTimers();
+  });
+
+  test("new progress cancels a pending completion clear", () => {
+    vi.useFakeTimers();
+    const writes: string[] = [];
+    const osc = createOscProgressController({
+      env: { TERM_PROGRAM: "wezterm" },
+      isTty: true,
+      clearDelayMs: 200,
+      write: (data) => writes.push(data),
+    });
+
+    osc.setPercent("Downloading", 42);
+    osc.done();
+    osc.setPercent("Downloading", 1);
+    vi.advanceTimersByTime(200);
+
+    expect(writes).toEqual([
+      `${OSC_PROGRESS_PREFIX}1;42;Downloading${OSC_PROGRESS_ST}`,
+      `${OSC_PROGRESS_PREFIX}1;100;Downloading${OSC_PROGRESS_ST}`,
+      `${OSC_PROGRESS_PREFIX}1;1;Downloading${OSC_PROGRESS_ST}`,
+    ]);
     vi.useRealTimers();
   });
 

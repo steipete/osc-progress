@@ -4,6 +4,12 @@ All notable changes to this project are documented in this file.
 
 ## 0.3.2 - Unreleased
 
+### Fixed
+
+- Match default TTY detection to the default stderr writer and make indeterminate stop calls idempotent.
+- Cancel delayed completion clears when a controller starts new progress and clamp `NaN` percentages to a valid frame.
+- Strip all C0, C1, and DEL control bytes from labels while preserving printable punctuation.
+
 ## 0.3.1 - 2026-06-10
 
 ### Fixed
