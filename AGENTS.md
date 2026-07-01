@@ -15,11 +15,11 @@ This repo uses Node.js `>= 24` and `pnpm` (see `package.json`).
 - `pnpm install`: install deps.
 - `pnpm build`: compile TypeScript into `dist/`.
 - `pnpm typecheck`: TypeScript typecheck (no emit).
-- `pnpm lint`: Biome checks (CI-style; no writes).
-- `pnpm format`: format in-place with Biome.
+- `pnpm lint`: Oxfmt formatting checks plus Oxlint (CI-style; no writes).
+- `pnpm format`: format in-place with Oxfmt.
 - `pnpm test`: build + run unit tests.
 - `pnpm test:coverage`: build + tests + coverage thresholds.
-- `pnpm check`: `lint` + `test:coverage` (use before PRs).
+- `pnpm check`: `lint` + `typecheck` + `test:coverage` (use before PRs).
 
 ## Coding Style & Naming Conventions
 

@@ -11,7 +11,7 @@ Rule: every release = **npm publish + git tag + GitHub release** (always do all 
 
 ## 2) Validate
 
-- [ ] `pnpm check` (Biome + tests; must be warning-free).
+- [ ] `pnpm check` (Oxfmt, Oxlint, typecheck, and tests; must be warning-free).
 
 ## 3) Build + inspect artifact
 
