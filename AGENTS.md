@@ -24,8 +24,8 @@ This repo uses Node.js `>= 24` and `pnpm` (see `package.json`).
 ## Coding Style & Naming Conventions
 
 - TypeScript, ESM (`"type": "module"`). Keep imports explicit and Node-friendly.
-- Formatting/linting: Biome (`biome.jsonc`).
-  - 2-space indent, 100 columns, single quotes, semicolons as-needed.
+- Formatting/linting: Oxfmt (`.oxfmtrc.json`) + Oxlint.
+  - 2-space indent, 100 columns, semicolons as-needed.
 - Public API discipline: export new API from `src/index.ts`; add TSDoc for anything user-facing.
 - Naming: functions/vars `camelCase`, types `PascalCase`, constants `SCREAMING_SNAKE_CASE`.
 
