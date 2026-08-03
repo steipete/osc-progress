@@ -1,131 +1,107 @@
-# ⏳ osc-progress — Tiny lib for OSC 9;4 terminal progress.
+# osc-progress ⏳ — Tiny progress, right in the tab.
 
-Tiny TypeScript helper for **OSC 9;4** terminal progress (Ghostty / WezTerm / Windows Terminal).
+[![CI](https://img.shields.io/github/actions/workflow/status/steipete/osc-progress/ci.yml?branch=main&style=flat-square&label=ci)](https://github.com/steipete/osc-progress/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/osc-progress?style=flat-square)](https://www.npmjs.com/package/osc-progress)
+[![Node](https://img.shields.io/node/v/osc-progress?style=flat-square)](https://nodejs.org)
+[![License](https://img.shields.io/github/license/steipete/osc-progress?style=flat-square)](LICENSE)
+
+`osc-progress` is a TypeScript library for emitting and removing OSC 9;4 terminal progress
+sequences. It is intended for Node.js CLIs running in Ghostty, WezTerm, or Windows Terminal and
+becomes a no-op outside supported TTYs.
 
 ## Install
 
-```bash
+```sh
 pnpm add osc-progress
 ```
 
-## Usage
+Node.js 24 or newer is required.
+
+## Quick start
 
 ```ts
-import process from "node:process";
+import { setTimeout as delay } from "node:timers/promises";
 import { startOscProgress } from "osc-progress";
 
-const stop = startOscProgress({
-  label: "Fetching",
-  write: (chunk) => process.stderr.write(chunk),
-  env: process.env,
-  isTty: process.stderr.isTTY,
+const stop = startOscProgress({ label: "Indexing", indeterminate: true });
+try {
+  await delay(1_000);
+} finally {
+  stop();
+}
+```
+
+`startOscProgress()` writes to stderr by default. In a supported terminal it starts progress and
+returns an idempotent function that clears it; elsewhere both operations do nothing.
+
+## Report real progress
+
+Use a controller when the work already exposes a percentage or moves between states:
+
+```ts
+import { createOscProgressController } from "osc-progress";
+
+const progress = createOscProgressController({ stallAfterMs: 10_000 });
+progress.setIndeterminate("Connecting");
+progress.setPercent("Downloading", 42);
+progress.done();
+```
+
+Updates are deduplicated and throttled to about one every 150 ms. Percentages are rounded and
+clamped to `0..100`; `done()` and `fail()` emit their final state before clearing it.
+
+## Detection and overrides
+
+Progress is enabled only for a TTY recognized as Ghostty, WezTerm, or Windows Terminal. The same
+detection applies to both `startOscProgress()` and `createOscProgressController()`.
+
+```ts
+import { supportsOscProgress } from "osc-progress";
+
+const supported = supportsOscProgress(process.env, process.stderr.isTTY === true, {
+  forceEnvVar: "MY_CLI_FORCE_PROGRESS",
+  disableEnvVar: "MY_CLI_NO_PROGRESS",
 });
-
-// ...do work...
-
-stop();
 ```
 
-Indeterminate (spinner-like) mode:
+The named environment variables take effect when their value is `"1"`. Direct `force` and
+`disabled` options are also available; a non-TTY stream always remains disabled.
 
-```ts
-import { startOscProgress } from "osc-progress";
+## Clean stored output
 
-const stop = startOscProgress({ label: "Waiting", indeterminate: true });
-// ...
-stop();
-```
-
-Strip OSC progress from stored logs:
+Remove progress control sequences before saving captured terminal output:
 
 ```ts
 import { sanitizeOscProgress } from "osc-progress";
 
-const clean = sanitizeOscProgress(text, /*keepOsc*/ process.stdout.isTTY);
+function prepareForStorage(output: string): string {
+  return sanitizeOscProgress(output, process.stdout.isTTY === true);
+}
 ```
 
-## API
+The parser recognizes sequences terminated by `BEL`, `ST` (`ESC \\`), or C1 `ST` (`0x9c`).
 
-### `supportsOscProgress(env?, isTty?, options?)`
+## API and terminal behavior
 
-Returns `true` when emitting OSC 9;4 progress makes sense.
+The public API includes the timer-based helper, a stateful controller, support detection, label
+sanitization, sequence discovery, and stripping helpers. See the [API reference](docs/API.md) for
+signatures, options, exported constants, and OSC 9;4 portability notes.
 
-Heuristics:
+OSC 9;4 state `4` is interpreted as paused by some terminals and warning by others. The library
+emits the numeric state without trying to normalize that terminal-specific behavior. Labels are
+an extra payload outside the canonical OSC 9;4 fields, so terminals may ignore them.
 
-- requires a TTY
-- enables for `TERM_PROGRAM=ghostty*`, `TERM_PROGRAM=wezterm*`, or `WT_SESSION` (Windows Terminal)
+## Development
 
-Optional overrides:
-
-- `options.disabled` / `options.force`
-- `options.disableEnvVar` / `options.forceEnvVar` (expects `= "1"`)
-
-### `startOscProgress(options?)`
-
-Starts a best-effort progress indicator and returns `stop(): void`.
-
-Notes:
-
-- `label` is appended as extra payload; **not part of the canonical OSC 9;4 spec** (many terminals ignore it, some show it).
-- default output and TTY detection both use stderr.
-- default is a timer-driven `0% → 99%` progression (never completes by itself).
-- `terminator` defaults to `st` (`ESC \\`); `bel` is also supported.
-
-### `createOscProgressController(options?)`
-
-Returns a small stateful controller:
-
-- `setIndeterminate(label)`
-- `setPercent(label, percent)`
-- `setPaused(label)` (state `4`)
-- `done(label?)` (emit 100% then clear)
-- `fail(label?)` (emit error state then clear)
-- `clear()`
-- `dispose()` (cleanup timers/listeners)
-
-Use this when you already have real progress (bytes/total, seconds/total) and want determinate terminal progress instead of the timer-based ramp.
-
-Notes:
-
-- returns no-op methods when `supportsOscProgress(...)` is false
-- `percent` is rounded and clamped to `0..100`
-- `clear()` uses the last label (or the initial `options.label` if nothing was set yet)
-- progress updates are throttled by default (deduped + max ~1 update/150ms)
-- `stallAfterMs` emits a paused/stalled state when updates stop
-- `clearDelayMs` controls how long `done()` / `fail()` wait before clearing
-- `autoClearOnExit` clears on process exit
-
-```ts
-import process from "node:process";
-import { createOscProgressController } from "osc-progress";
-
-const osc = createOscProgressController({
-  env: process.env,
-  isTty: process.stderr.isTTY,
-  write: (chunk) => process.stderr.write(chunk),
-  stallAfterMs: 10_000,
-  clearDelayMs: 200,
-  autoClearOnExit: true,
-});
-
-osc.setIndeterminate("Connecting");
-osc.setPercent("Downloading", 12);
-osc.setPercent("Downloading", 67);
-osc.done();
+```sh
+pnpm install
+pnpm build
+pnpm test
+pnpm check
 ```
 
-#### Controller options
+`pnpm check` runs formatting, linting, typechecking, tests, and coverage thresholds.
 
-- `stallAfterMs`: emit state=4 when no updates are seen within this window.
-- `stalledLabel`: override stalled label (string or formatter).
-- `clearDelayMs`: delay before `done()`/`fail()` clears.
-- `autoClearOnExit`: clear progress on process exit.
+## License
 
-### `sanitizeOscProgress(text, keepOsc)`
-
-Removes OSC 9;4 progress sequences (terminated by `BEL`, `ST` (`ESC \\`), or `0x9c`).
-
-## Semantics / portability
-
-OSC 9;4 is widely implemented, but state `4` is ambiguous across terminals (some treat it as `paused`, some as `warning`).
-This library exposes the raw numeric state and does not try to reinterpret it.
+MIT. See [LICENSE](LICENSE).
