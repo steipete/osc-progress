@@ -6,8 +6,8 @@
 [![License](https://img.shields.io/github/license/steipete/osc-progress?style=flat-square)](LICENSE)
 
 `osc-progress` is a TypeScript library for emitting and removing OSC 9;4 terminal progress
-sequences. It is intended for Node.js CLIs running in Ghostty, WezTerm, or Windows Terminal and
-becomes a no-op outside supported TTYs.
+sequences. It is intended for Node.js CLIs running in Ghostty, WezTerm, Canario, or Windows
+Terminal and becomes a no-op outside supported TTYs.
 
 ## Install
 
@@ -52,7 +52,7 @@ clamped to `0..100`; `done()` and `fail()` emit their final state before clearin
 
 ## Detection and overrides
 
-Progress is enabled only for a TTY recognized as Ghostty, WezTerm, or Windows Terminal. The same
+Progress is enabled only for a TTY recognized as Ghostty, WezTerm, Canario, or Windows Terminal. The same
 detection applies to both `startOscProgress()` and `createOscProgressController()`.
 
 ```ts
