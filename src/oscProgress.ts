@@ -137,7 +137,8 @@ export function sanitizeLabel(label: string): string {
  *
  * Default heuristics:
  * - requires `isTty === true`
- * - enables for Ghostty (`TERM_PROGRAM=ghostty*`), WezTerm (`TERM_PROGRAM=wezterm*`), Canario (`TERM_PROGRAM=canario*`), Windows Terminal (`WT_SESSION`)
+ * - enables for Ghostty (`TERM_PROGRAM=ghostty*`), WezTerm (`TERM_PROGRAM=wezterm*`),
+ *   Canario (`TERM_PROGRAM=canario*`), or Windows Terminal (`WT_SESSION`)
  *
  * Override knobs:
  * - `options.force` / `options.disabled`

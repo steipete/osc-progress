@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file.
 
 ## 0.3.3 - Unreleased
 
+### Fixed
+
+- Recognize Canario as supporting OSC 9;4 progress. (`#33`, thanks `@hugows`)
+
 ## 0.3.2 - 2026-07-04
 
 ### Fixed

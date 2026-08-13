@@ -52,8 +52,8 @@ clamped to `0..100`; `done()` and `fail()` emit their final state before clearin
 
 ## Detection and overrides
 
-Progress is enabled only for a TTY recognized as Ghostty, WezTerm, Canario, or Windows Terminal. The same
-detection applies to both `startOscProgress()` and `createOscProgressController()`.
+Progress is enabled only for a TTY recognized as Ghostty, WezTerm, Canario, or Windows Terminal.
+The same detection applies to both `startOscProgress()` and `createOscProgressController()`.
 
 ```ts
 import { supportsOscProgress } from "osc-progress";
