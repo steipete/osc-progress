@@ -56,8 +56,8 @@
   "devDependencies": {
     "@types/node": "^26.2.0",
     "@vitest/coverage-v8": "^4.1.10",
-    "oxfmt": "^0.62.0",
-    "oxlint": "^1.76.0",
+    "oxfmt": "^0.63.0",
+    "oxlint": "^1.78.0",
     "postcss": "^8.5.26",
     "typescript": "^7.0.2",
     "vite": "^8.2.1",
