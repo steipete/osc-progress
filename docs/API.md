@@ -7,7 +7,7 @@ and support detection defaults to `process.env` and `process.stderr.isTTY`.
 
 Returns whether emitting OSC 9;4 progress is appropriate. Detection requires a TTY and recognizes:
 
-- `TERM_PROGRAM` containing `ghostty` or `wezterm`, case-insensitively
+- `TERM_PROGRAM` containing `ghostty`, `wezterm`, or `canario`, case-insensitively
 - `WT_SESSION`, used by Windows Terminal
 
 `options` accepts:

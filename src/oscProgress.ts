@@ -137,7 +137,8 @@ export function sanitizeLabel(label: string): string {
  *
  * Default heuristics:
  * - requires `isTty === true`
- * - enables for Ghostty (`TERM_PROGRAM=ghostty*`), WezTerm (`TERM_PROGRAM=wezterm*`), Windows Terminal (`WT_SESSION`)
+ * - enables for Ghostty (`TERM_PROGRAM=ghostty*`), WezTerm (`TERM_PROGRAM=wezterm*`),
+ *   Canario (`TERM_PROGRAM=canario*`), or Windows Terminal (`WT_SESSION`)
  *
  * Override knobs:
  * - `options.force` / `options.disabled`
@@ -162,6 +163,7 @@ export function supportsOscProgress(
   const termProgram = (env.TERM_PROGRAM ?? "").toLowerCase();
   if (termProgram.includes("ghostty")) return true;
   if (termProgram.includes("wezterm")) return true;
+  if (termProgram.includes("canario")) return true;
   if (env.WT_SESSION) return true;
   return false;
 }

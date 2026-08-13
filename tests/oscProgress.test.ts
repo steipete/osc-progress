@@ -61,9 +61,10 @@ describe("supportsOscProgress", () => {
     expect(supportsOscProgress({ TERM_PROGRAM: "unknown" }, true)).toBe(false);
   });
 
-  test("supports Ghostty/WezTerm/Windows Terminal", () => {
+  test("supports known OSC 9;4 terminals", () => {
     expect(supportsOscProgress({ TERM_PROGRAM: "ghostty" }, true)).toBe(true);
     expect(supportsOscProgress({ TERM_PROGRAM: "WezTerm" }, true)).toBe(true);
+    expect(supportsOscProgress({ TERM_PROGRAM: "Canario" }, true)).toBe(true);
     expect(supportsOscProgress({ WT_SESSION: "1" }, true)).toBe(true);
   });
 
