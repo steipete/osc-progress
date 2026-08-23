@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file.
 
 ## 0.3.4 - Unreleased
 
+### Changed
+
+- Update the development toolchain and refresh the patched esbuild security override.
+
 ## 0.3.3 - 2026-08-13
 
 ### Fixed
