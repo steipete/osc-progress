@@ -54,10 +54,10 @@
     "check": "pnpm lint && pnpm typecheck && pnpm test:coverage"
   },
   "devDependencies": {
-    "@types/node": "^26.2.0",
+    "@types/node": "^26.4.0",
     "@vitest/coverage-v8": "^4.1.11",
-    "oxfmt": "^0.64.0",
-    "oxlint": "^1.79.0",
+    "oxfmt": "^0.65.0",
+    "oxlint": "^1.80.0",
     "postcss": "^8.5.26",
     "typescript": "^7.0.2",
     "vite": "^8.2.2",
@@ -66,5 +66,5 @@
   "engines": {
     "node": ">=24"
   },
-  "packageManager": "pnpm@11.18.0"
+  "packageManager": "pnpm@11.24.0"
 }
