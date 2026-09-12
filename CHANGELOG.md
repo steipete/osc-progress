@@ -6,9 +6,9 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 
-- Update the development toolchain and refresh the patched esbuild security override.
-- Refresh pnpm to 11.24.0, Node.js types, Oxfmt, Oxlint, and the dependency lockfile.
-- Refresh pnpm to 11.25.0, Node.js types, Oxfmt, Oxlint, and PostCSS while retaining Node.js 24 support.
+- Refresh pnpm to 11.26.0, Node.js types, Oxfmt, Oxlint, PostCSS, Vite, Vitest 4, and the dependency lockfile while retaining Node.js 24+ support. (`#39`, thanks `@dependabot`)
+- Validate strict dependency engine compatibility and the full test suite on Node.js 24, 25, and 26 in CI.
+- Keep the development toolchain on the patched esbuild 0.28.2 security override.
 
 ## 0.3.3 - 2026-08-13
 
