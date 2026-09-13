@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+### Fixed
+
+- Keep timer-driven progress and controller throttling steady across system-clock changes, and use the default ramp duration for `NaN` instead of emitting invalid percentages.
+
 ### Changed
 
 - Refresh Node.js 24 types, Oxfmt, Oxlint, PostCSS, Vite, Vitest 4, and the dependency lockfile while retaining Node.js 24+ support and pnpm 11.26.0. (`#39`, thanks `@dependabot`)

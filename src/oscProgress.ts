@@ -18,6 +18,7 @@ export {
   sanitizeOscProgress,
 } from "./sequences.js";
 
+const DEFAULT_TARGET_MS = 10 * 60_000;
 const DEFAULT_THROTTLE_INTERVAL_MS = 150;
 const DEFAULT_CLEAR_DELAY_MS = 150;
 
@@ -42,6 +43,7 @@ export interface OscProgressOptions extends OscProgressSupportOptions {
   label?: string;
   /**
    * Target duration in ms for the internal `0 → 99%` ramp.
+   * Defaults to 10 minutes, including for NaN; the minimum is 1 second.
    * The implementation never emits 100% by itself; completion is via `stop()`.
    */
   targetMs?: number;
@@ -154,7 +156,7 @@ export function supportsOscProgress(
 export function startOscProgress(options: OscProgressOptions = {}): () => void {
   const {
     label = "Working…",
-    targetMs = 10 * 60_000,
+    targetMs = DEFAULT_TARGET_MS,
     write = (text) => process.stderr.write(text),
     indeterminate = false,
     state = 1,
@@ -186,12 +188,12 @@ export function startOscProgress(options: OscProgressOptions = {}): () => void {
     };
   }
 
-  const target = Math.max(targetMs, 1_000);
-  const startedAt = Date.now();
+  const target = Math.max(Number.isNaN(targetMs) ? DEFAULT_TARGET_MS : targetMs, 1_000);
+  const startedAt = performance.now();
   send(state, 0);
 
   const timer = setInterval(() => {
-    const elapsed = Date.now() - startedAt;
+    const elapsed = performance.now() - startedAt;
     const percent = Math.min(99, (elapsed / target) * 100);
     send(state, percent);
   }, 900);
@@ -313,7 +315,7 @@ export function createOscProgressController(
   const send = (state: number, percent: number | null, nextLabel: string, force = false) => {
     const cleanLabel = sanitizeLabel(nextLabel);
     const normalizedPercent = percent == null ? null : normalizePercent(percent);
-    const now = Date.now();
+    const now = performance.now();
     const stateChanged = state !== lastEmittedState;
     const labelChanged = cleanLabel !== lastEmittedLabel;
     const percentChanged = normalizedPercent !== lastEmittedPercent;
