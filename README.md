@@ -101,6 +101,9 @@ pnpm check
 ```
 
 `pnpm check` runs formatting, linting, typechecking, tests, and coverage thresholds.
+After building, `node scripts/smoke.mjs` checks the compiled package through ESM and CommonJS
+entrypoints with real timers. CI runs tests and this smoke check on Node 24, 25, and 26;
+formatting, typechecking, and coverage run once on Node 24.
 
 ## License
 

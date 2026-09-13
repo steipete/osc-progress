@@ -47,20 +47,20 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "format": "oxfmt --write .",
     "format:check": "oxfmt --check .",
-    "lint": "pnpm format:check && oxlint --deny-warnings src tests",
-    "lint:fix": "pnpm format && oxlint --fix src tests",
+    "lint": "pnpm format:check && oxlint --deny-warnings src tests scripts",
+    "lint:fix": "pnpm format && oxlint --fix src tests scripts",
     "test": "pnpm build && vitest run",
     "test:coverage": "pnpm build && vitest run --coverage",
     "check": "pnpm lint && pnpm typecheck && pnpm test:coverage"
   },
   "devDependencies": {
-    "@types/node": "^26.5.1",
+    "@types/node": "^24.13.4",
     "@vitest/coverage-v8": "^4.1.11",
     "oxfmt": "^0.67.0",
-    "oxlint": "^1.81.0",
-    "postcss": "^8.5.27",
+    "oxlint": "^1.82.0",
+    "postcss": "^8.5.28",
     "typescript": "^7.0.2",
-    "vite": "^8.2.2",
+    "vite": "^8.3.0",
     "vitest": "^4.1.11"
   },
   "engines": {
