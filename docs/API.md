@@ -31,18 +31,18 @@ By default, the helper emits a timer-driven `0%` to `99%` progression and never 
 itself. Calling `stop()` clears the indicator. Set `indeterminate: true` for state `3` without a
 percentage.
 
-| Option                         | Default                | Behavior                                                                      |
-| ------------------------------ | ---------------------- | ----------------------------------------------------------------------------- |
-| `label`                        | `"Working…"`           | Extra payload appended to the sequence after control bytes are removed.       |
-| `targetMs`                     | 10 minutes             | Target duration for the internal `0%` to `99%` ramp; the minimum is 1 second. |
-| `write`                        | `process.stderr.write` | Receives each complete OSC sequence.                                          |
-| `env`                          | `process.env`          | Environment used for support detection.                                       |
-| `isTty`                        | `process.stderr.isTTY` | TTY state used for support detection.                                         |
-| `indeterminate`                | `false`                | Emits state `3` without a percentage.                                         |
-| `state`                        | `1`                    | Numeric state for determinate updates: `1`, `2`, or `4`.                      |
-| `terminator`                   | `"st"`                 | Sequence terminator: `"st"` (`ESC \\`) or `"bel"`.                            |
-| `disabled`, `force`            | `false`                | Direct support-detection overrides.                                           |
-| `disableEnvVar`, `forceEnvVar` | —                      | Environment-variable names used for detection overrides.                      |
+| Option                         | Default                | Behavior                                                                                       |
+| ------------------------------ | ---------------------- | ---------------------------------------------------------------------------------------------- |
+| `label`                        | `"Working…"`           | Extra payload appended to the sequence after control bytes are removed.                        |
+| `targetMs`                     | 10 minutes             | Target duration for the internal `0%` to `99%` ramp; minimum 1 second; `NaN` uses the default. |
+| `write`                        | `process.stderr.write` | Receives each complete OSC sequence.                                                           |
+| `env`                          | `process.env`          | Environment used for support detection.                                                        |
+| `isTty`                        | `process.stderr.isTTY` | TTY state used for support detection.                                                          |
+| `indeterminate`                | `false`                | Emits state `3` without a percentage.                                                          |
+| `state`                        | `1`                    | Numeric state for determinate updates: `1`, `2`, or `4`.                                       |
+| `terminator`                   | `"st"`                 | Sequence terminator: `"st"` (`ESC \\`) or `"bel"`.                                             |
+| `disabled`, `force`            | `false`                | Direct support-detection overrides.                                                            |
+| `disableEnvVar`, `forceEnvVar` | —                      | Environment-variable names used for detection overrides.                                       |
 
 ## `createOscProgressController(options?)`
 
@@ -67,6 +67,9 @@ The controller accepts all `startOscProgress()` options plus:
 | `stalledLabel`    | `label + " (stalled)"` | Static label or formatter used for a stalled update.                             |
 | `clearDelayMs`    | `150`                  | Delay before `done()` or `fail()` clears; `0` clears immediately.                |
 | `autoClearOnExit` | `false`                | Clears progress during the Node.js `exit` event.                                 |
+
+Ramp progression and controller throttling use monotonic elapsed time, so system-clock changes
+do not reset progress or suppress updates.
 
 Controller updates are deduplicated and percentage-only changes are throttled to at most about one
 update every 150 ms. A state or label change emits immediately.

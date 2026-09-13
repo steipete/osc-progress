@@ -107,6 +107,47 @@ describe("startOscProgress", () => {
     expect(writes.at(-1)).toBe(`${OSC_PROGRESS_PREFIX}0;0;Fetching${OSC_PROGRESS_ST}`);
   });
 
+  test("uses the default ramp duration when targetMs is NaN", () => {
+    vi.useFakeTimers();
+    const writes: string[] = [];
+    const stop = startOscProgress({
+      force: true,
+      isTty: true,
+      label: "Work",
+      targetMs: Number.NaN,
+      write: (frame) => writes.push(frame),
+    });
+    vi.advanceTimersByTime(9_000);
+    stop();
+    expect(writes.at(-2)).toBe(`${OSC_PROGRESS_PREFIX}1;2;Work${OSC_PROGRESS_ST}`);
+    expect(writes.some((frame) => frame.includes("NaN"))).toBe(false);
+  });
+
+  test.each([-60_000, 60_000])(
+    "keeps the ramp steady after a %i ms wall-clock adjustment",
+    (offset) => {
+      vi.useFakeTimers();
+      const writes: string[] = [];
+      const stop = startOscProgress({
+        force: true,
+        isTty: true,
+        label: "Work",
+        targetMs: 2_000,
+        write: (frame) => writes.push(frame),
+      });
+      vi.advanceTimersByTime(900);
+      vi.setSystemTime(Date.now() + offset);
+      vi.advanceTimersByTime(900);
+      stop();
+      expect(writes).toEqual([
+        `${OSC_PROGRESS_PREFIX}1;0;Work${OSC_PROGRESS_ST}`,
+        `${OSC_PROGRESS_PREFIX}1;45;Work${OSC_PROGRESS_ST}`,
+        `${OSC_PROGRESS_PREFIX}1;90;Work${OSC_PROGRESS_ST}`,
+        `${OSC_PROGRESS_PREFIX}0;0;Work${OSC_PROGRESS_ST}`,
+      ]);
+    },
+  );
+
   test("supports BEL terminator", () => {
     const writes: string[] = [];
     const stop = startOscProgress({

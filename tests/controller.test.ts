@@ -162,6 +162,30 @@ describe("createOscProgressController", () => {
     expect(writes).toHaveLength(2);
   });
 
+  test.each([-60_000, 60_000])(
+    "keeps throttling steady after a %i ms wall-clock adjustment",
+    (offset) => {
+      vi.useFakeTimers();
+      const writes: string[] = [];
+      const osc = createOscProgressController({
+        force: true,
+        isTty: true,
+        write: (frame) => writes.push(frame),
+      });
+      osc.setPercent("Work", 1);
+      vi.setSystemTime(Date.now() + offset);
+      osc.setPercent("Work", 2);
+      expect(writes).toHaveLength(1);
+      vi.advanceTimersByTime(150);
+      osc.setPercent("Work", 3);
+      expect(writes).toEqual([
+        `${OSC_PROGRESS_PREFIX}1;1;Work${OSC_PROGRESS_ST}`,
+        `${OSC_PROGRESS_PREFIX}1;3;Work${OSC_PROGRESS_ST}`,
+      ]);
+      osc.dispose();
+    },
+  );
+
   test("dedupes identical updates even after time passes", () => {
     vi.useFakeTimers();
     const writes: string[] = [];
