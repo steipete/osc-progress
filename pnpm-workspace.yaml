@@ -1,2 +1,4 @@
+minimumReleaseAge: 2880
+
 overrides:
   esbuild: 0.28.2
