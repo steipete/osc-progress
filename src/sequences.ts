@@ -45,19 +45,15 @@ function findTerminator(
   text: string,
   from: number,
 ): { end: number; terminator: OscProgressSequence["terminator"] } | undefined {
-  let first: { end: number; terminator: OscProgressSequence["terminator"] } | undefined;
-  for (const [value, terminator] of [
-    [OSC_PROGRESS_ST, "st"],
-    [OSC_PROGRESS_BEL, "bel"],
-    [OSC_PROGRESS_C1_ST, "c1st"],
-  ] as const) {
-    const start = text.indexOf(value, from);
-    if (start !== -1) {
-      const end = start + value.length;
-      if (!first || end < first.end) first = { end, terminator };
+  for (let index = from; index < text.length; index++) {
+    const char = text[index];
+    if (char === OSC_PROGRESS_BEL) return { end: index + 1, terminator: "bel" };
+    if (char === OSC_PROGRESS_C1_ST) return { end: index + 1, terminator: "c1st" };
+    if (char === "\u001b" && text[index + 1] === "\\") {
+      return { end: index + 2, terminator: "st" };
     }
   }
-  return first;
+  return undefined;
 }
 
 /**
@@ -95,16 +91,42 @@ export function findOscProgressSequences(text: string): OscProgressSequence[] {
  * - if a sequence is unterminated, it is removed until end-of-string
  */
 export function stripOscProgress(text: string): string {
-  const prefixLen = OSC_PROGRESS_PREFIX.length;
-  let current = text;
-  while (current.includes(OSC_PROGRESS_PREFIX)) {
-    const start = current.indexOf(OSC_PROGRESS_PREFIX);
-    const after = start + prefixLen;
+  if (!text.includes(OSC_PROGRESS_PREFIX)) return text;
+  const chunks: string[] = [];
+  const tailLength = OSC_PROGRESS_PREFIX.length - 1;
+  let tail = "";
+  let cursor = 0;
+  while (cursor < text.length) {
+    // Removing a joined prefix can expose an earlier fragment, so refill the lookbehind.
+    while (tail.length < tailLength && chunks.length > 0) {
+      const previous = chunks.pop()!;
+      const split = Math.max(0, previous.length - (tailLength - tail.length));
+      if (split > 0) chunks.push(previous.slice(0, split));
+      tail = previous.slice(split) + tail;
+    }
 
-    const cutEnd = findTerminator(current, after)?.end ?? current.length;
-    current = `${current.slice(0, start)}${current.slice(cutEnd)}`;
+    const boundary = tail + text.slice(cursor, cursor + tailLength);
+    const joinedAt = boundary.indexOf(OSC_PROGRESS_PREFIX);
+    let after: number;
+    if (joinedAt !== -1) {
+      after = cursor + OSC_PROGRESS_PREFIX.length - tail.length + joinedAt;
+      tail = tail.slice(0, joinedAt);
+    } else {
+      const start = text.indexOf(OSC_PROGRESS_PREFIX, cursor);
+      if (start === -1) return [...chunks, tail, text.slice(cursor)].join("");
+      const literal = tail + text.slice(cursor, start);
+      const split = Math.max(0, literal.length - tailLength);
+      if (split > 0) chunks.push(literal.slice(0, split));
+      tail = literal.slice(split);
+      after = start + OSC_PROGRESS_PREFIX.length;
+    }
+
+    const match = findTerminator(text, after);
+    if (!match) break;
+    cursor = match.end;
   }
-  return current;
+  chunks.push(tail);
+  return chunks.join("");
 }
 
 /**

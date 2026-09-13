@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- Scan and strip large captured terminal logs in linear time while preserving mixed terminators, incomplete-sequence removal, and prefixes joined across removed frames.
+
 - Keep timer-driven progress and controller throttling steady across system-clock changes, and use the default ramp duration for `NaN` instead of emitting invalid percentages.
 
 ### Changed
