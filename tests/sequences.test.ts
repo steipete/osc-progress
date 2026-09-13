@@ -93,3 +93,46 @@ describe("strip/sanitize", () => {
     expect(stripOscProgress(text)).toBe("pre");
   });
 });
+
+describe("captured output", () => {
+  test.each([
+    ["st", OSC_PROGRESS_ST],
+    ["bel", OSC_PROGRESS_BEL],
+    ["c1st", OSC_PROGRESS_C1_ST],
+  ] as const)("preserves offsets and the first %s terminator", (terminator, end) => {
+    const raw = `${OSC_PROGRESS_PREFIX}1;42;escaped\u001bX${end}`;
+    expect(findOscProgressSequences(`🌍${raw}tail`)).toEqual([
+      { start: 2, end: 2 + raw.length, raw, terminator },
+    ]);
+  });
+
+  test.each([0, 8_186, 8_190, 16_378])(
+    "removes prefixes assembled after %i literal characters",
+    (length) => {
+      const inner = `${OSC_PROGRESS_PREFIX}1;42;inner${OSC_PROGRESS_BEL}`;
+      const literal = "x".repeat(length);
+      const text = `${literal}${OSC_PROGRESS_PREFIX.slice(0, 4)}${inner}${OSC_PROGRESS_PREFIX.slice(4)}1;42;outer${OSC_PROGRESS_BEL}tail`;
+      expect(stripOscProgress(text)).toBe(`${literal}tail`);
+    },
+  );
+
+  test("removes nested prefixes exposed by successive removals", () => {
+    let nested = `${OSC_PROGRESS_PREFIX}1;42;inner${OSC_PROGRESS_BEL}`;
+    for (let split = 1; split < OSC_PROGRESS_PREFIX.length; split++) {
+      nested = `${OSC_PROGRESS_PREFIX.slice(0, split)}${nested}${OSC_PROGRESS_PREFIX.slice(split)}1;42;outer${OSC_PROGRESS_ST}`;
+    }
+    expect(stripOscProgress(`before${nested}after`)).toBe("beforeafter");
+  });
+
+  test("handles a dense capture without quadratic scanning", () => {
+    const count = 40_000;
+    const text = `log\n${OSC_PROGRESS_PREFIX}1;42;x${OSC_PROGRESS_BEL}`.repeat(count);
+    const startedAt = performance.now();
+    const sequences = findOscProgressSequences(text);
+    expect(sequences).toHaveLength(count);
+    expect(sequences.at(-1)?.end).toBe(text.length);
+    expect(stripOscProgress(text)).toBe("log\n".repeat(count));
+    // Generous headroom for slow CI; repeated suffix scans took over 15 seconds locally.
+    expect(performance.now() - startedAt).toBeLessThan(5_000);
+  });
+});

@@ -85,6 +85,7 @@ whitespace. Emitters apply this automatically to labels.
 
 Returns an array of `{ start, end, raw, terminator }` records for complete OSC 9;4 sequences.
 `terminator` is `"st"`, `"bel"`, or `"c1st"`. Unterminated sequences are ignored.
+Finding and stripping sequences scan the input in linear time.
 
 ### `stripOscProgress(text)`
 
