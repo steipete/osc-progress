@@ -44,7 +44,7 @@
     "prepare": "pnpm build",
     "prepack": "pnpm build",
     "prepublishOnly": "pnpm check",
-    "typecheck": "tsc -p tsconfig.build.json --noEmit",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
     "format": "oxfmt --write .",
     "format:check": "oxfmt --check .",
     "lint": "pnpm format:check && oxlint --deny-warnings src tests",

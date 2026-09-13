@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 
-- `src/`: library source (public entrypoint: `src/index.ts`; implementation: `src/oscProgress.ts`).
+- `src/`: library source (public entrypoint: `src/index.ts`; controller/emitter: `src/oscProgress.ts`; protocol helpers: `src/sequences.ts`).
 - `tests/`: Vitest unit tests (`tests/**/*.test.ts`).
 - `docs/`: maintenance docs (notably `docs/RELEASING.md`).
 - `dist/`: build output (generated; don’t edit or commit).
@@ -14,7 +14,7 @@ This repo uses Node.js `>= 24` and `pnpm` (see `package.json`).
 
 - `pnpm install`: install deps.
 - `pnpm build`: compile TypeScript into `dist/`.
-- `pnpm typecheck`: TypeScript typecheck (no emit).
+- `pnpm typecheck`: TypeScript typecheck for source, tests, and test configuration (no emit).
 - `pnpm lint`: Oxfmt formatting checks plus Oxlint (CI-style; no writes).
 - `pnpm format`: format in-place with Oxfmt.
 - `pnpm test`: build + run unit tests.
@@ -25,7 +25,7 @@ This repo uses Node.js `>= 24` and `pnpm` (see `package.json`).
 
 - TypeScript, ESM (`"type": "module"`). Keep imports explicit and Node-friendly.
 - Formatting/linting: Oxfmt (`.oxfmtrc.json`) + Oxlint.
-  - 2-space indent, 100 columns, semicolons as-needed.
+  - 2-space indent, 100 columns, semicolons.
 - Public API discipline: export new API from `src/index.ts`; add TSDoc for anything user-facing.
 - Naming: functions/vars `camelCase`, types `PascalCase`, constants `SCREAMING_SNAKE_CASE`.
 

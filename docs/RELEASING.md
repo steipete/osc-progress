@@ -4,7 +4,7 @@ Rule: every release = **npm publish + git tag + GitHub release** (always do all 
 
 ## 1) Version & changelog
 
-- [ ] Decide the next version (start at `0.1.0`, then increment as needed).
+- [ ] Choose the next version from the unreleased changes.
 - [ ] Update `package.json` version.
 - [ ] Update `CHANGELOG.md` (product-facing bullets only).
 - [ ] `pnpm install` (keep `pnpm-lock.yaml` current).
@@ -26,11 +26,7 @@ Rule: every release = **npm publish + git tag + GitHub release** (always do all 
 - [ ] Confirm registry + auth:
   - `npm ping`
   - `npm whoami`
-- [ ] Avoid browser auth prompts (recommended):
-  - Create a **granular access token** with **write** + **Bypass 2FA** at npmjs.com/settings/~/tokens.
-  - Export it in `~/.profile` (e.g. `export NPM_TOKEN=...`) and wire it in `~/.npmrc`:
-    - `//registry.npmjs.org/:_authToken=${NPM_TOKEN}`
-  - If `npm publish` still prompts for browser auth, the token wasn’t loaded; rerun from a shell that has `NPM_TOKEN` (e.g. `source ~/.profile`).
+- [ ] Use the maintainer's existing npm login and approved credential storage. Do not put tokens in shell profiles or commit them to npm configuration.
 - [ ] Publish:
   - `pnpm publish --access public --tag latest`
   - If npm requires 2FA OTP: add `--otp <code>`
@@ -54,4 +50,4 @@ Rule: every release = **npm publish + git tag + GitHub release** (always do all 
 - [ ] Confirm `latest`, tarball, integrity, and publish time all match the published version.
 - [ ] Confirm GitHub tag + Release exist and point to the published commit.
 - [ ] Confirm the Release body contains the changelog notes plus links to the npm version page, registry tarball, integrity, and CI/proof.
-- [ ] Open the next patch section as `Unreleased`, commit, and push the release closeout.
+- [ ] Open a new `## Unreleased` section, commit, and push the release closeout.
