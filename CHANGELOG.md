@@ -12,6 +12,7 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 
+- Upgrade Vitest and V8 coverage to 5.0.0; run strict-engine CI on Node.js 24 and 26, dropping the unsupported odd, non-LTS Node.js 25 toolchain while retaining the package's Node.js >=24 engine floor.
 - Refresh transitive tooling dependencies, including Rolldown 1.2.8, Oxc types 0.149.0, coverage helpers, Nano ID, obug, and tinyexec.
 - Refresh Node.js 24 types, Oxfmt, Oxlint, PostCSS, Vite, Vitest 4, and the dependency lockfile while retaining Node.js 24+ support and pnpm 11.26.0. (`#39`, thanks `@dependabot`)
 - Validate strict dependency engine compatibility, tests, and compiled-package smoke checks on Node.js 24, 25, and 26 in CI.

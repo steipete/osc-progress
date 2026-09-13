@@ -34,6 +34,7 @@ coverage/
 # Caches
 .cache/
 .vite/
+.vitest/
 
 # TypeScript
 *.tsbuildinfo
