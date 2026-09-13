@@ -33,26 +33,7 @@ coverage/
 
 # Caches
 .cache/
-.turbo/
-.parcel-cache/
 .vite/
-.next/
-.nuxt/
-.svelte-kit/
 
 # TypeScript
 *.tsbuildinfo
-
-# Binaries / native artifacts
-*.exe
-*.dll
-*.so
-*.dylib
-*.a
-*.o
-*.obj
-*.class
-*.jar
-*.wasm
-*.node
-*.dSYM/
