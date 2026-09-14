@@ -1,6 +1,6 @@
 {
   "name": "osc-progress",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "description": "Tiny TypeScript helper for OSC 9;4 terminal progress sequences.",
   "keywords": [
     "cli",
