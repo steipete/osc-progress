@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+### Fixed
+
+- Emit the latest throttled percentage even when no further updates arrive, and cancel queued percentages when progress changes state, clears, or is disposed.
+
 ## 0.3.4 - 2026-09-13
 
 ### Fixed

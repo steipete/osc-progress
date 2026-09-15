@@ -48,7 +48,8 @@ progress.done();
 ```
 
 Updates are deduplicated and throttled to about one every 150 ms. Percentages are rounded and
-clamped to `0..100`; `done()` and `fail()` emit their final state before clearing it.
+clamped to `0..100`; the latest percentage is emitted when the throttle window ends, even if no
+more updates arrive. `done()` and `fail()` emit their final state before clearing it.
 
 ## Detection and overrides
 

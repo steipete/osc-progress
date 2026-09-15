@@ -162,6 +162,109 @@ describe("createOscProgressController", () => {
     expect(writes).toHaveLength(2);
   });
 
+  test("flushes the latest percentage when updates stop inside the throttle window", () => {
+    vi.useFakeTimers();
+    const writes: string[] = [];
+    const osc = createOscProgressController({
+      force: true,
+      isTty: true,
+      write: (frame) => writes.push(frame),
+    });
+
+    osc.setPercent("Download", 10);
+    vi.advanceTimersByTime(50);
+    osc.setPercent("Download", 50);
+    vi.advanceTimersByTime(50);
+    osc.setPercent("Download", 100);
+    vi.advanceTimersByTime(49);
+    expect(writes).toEqual([`${OSC_PROGRESS_PREFIX}1;10;Download${OSC_PROGRESS_ST}`]);
+
+    vi.advanceTimersByTime(1);
+    expect(writes).toEqual([
+      `${OSC_PROGRESS_PREFIX}1;10;Download${OSC_PROGRESS_ST}`,
+      `${OSC_PROGRESS_PREFIX}1;100;Download${OSC_PROGRESS_ST}`,
+    ]);
+    vi.advanceTimersByTime(1_000);
+    expect(writes).toHaveLength(2);
+    osc.dispose();
+  });
+
+  test("cancels a queued percentage when progress returns to the displayed value", () => {
+    vi.useFakeTimers();
+    const writes: string[] = [];
+    const osc = createOscProgressController({
+      force: true,
+      isTty: true,
+      write: (frame) => writes.push(frame),
+    });
+    osc.setPercent("Download", 10);
+    osc.setPercent("Download", 20);
+    osc.setPercent("Download", 10);
+    vi.advanceTimersByTime(200);
+    expect(writes).toEqual([`${OSC_PROGRESS_PREFIX}1;10;Download${OSC_PROGRESS_ST}`]);
+    osc.dispose();
+  });
+
+  test.each(["setIndeterminate", "setPaused", "done", "fail", "clear", "dispose"] as const)(
+    "%s cancels a queued percentage",
+    (method) => {
+      vi.useFakeTimers();
+      const writes: string[] = [];
+      const osc = createOscProgressController({
+        force: true,
+        isTty: true,
+        clearDelayMs: 300,
+        write: (frame) => writes.push(frame),
+      });
+      osc.setPercent("Download", 10);
+      osc.setPercent("Download", 20);
+      osc[method]("Download");
+      const expected = [...writes];
+      vi.advanceTimersByTime(200);
+      expect(writes).toEqual(expected);
+      osc.dispose();
+      expect(vi.getTimerCount()).toBe(0);
+    },
+  );
+
+  test("a label change cancels a queued percentage for the previous task", () => {
+    vi.useFakeTimers();
+    const writes: string[] = [];
+    const osc = createOscProgressController({
+      force: true,
+      isTty: true,
+      write: (frame) => writes.push(frame),
+    });
+    osc.setPercent("Download", 10);
+    osc.setPercent("Download", 20);
+    osc.setPercent("Extract", 0);
+    vi.advanceTimersByTime(200);
+    expect(writes).toEqual([
+      `${OSC_PROGRESS_PREFIX}1;10;Download${OSC_PROGRESS_ST}`,
+      `${OSC_PROGRESS_PREFIX}1;0;Extract${OSC_PROGRESS_ST}`,
+    ]);
+    osc.dispose();
+  });
+
+  test("a stalled state supersedes a queued percentage", () => {
+    vi.useFakeTimers();
+    const writes: string[] = [];
+    const osc = createOscProgressController({
+      force: true,
+      isTty: true,
+      stallAfterMs: 100,
+      write: (frame) => writes.push(frame),
+    });
+    osc.setPercent("Download", 10);
+    osc.setPercent("Download", 20);
+    vi.advanceTimersByTime(200);
+    expect(writes).toEqual([
+      `${OSC_PROGRESS_PREFIX}1;10;Download${OSC_PROGRESS_ST}`,
+      `${OSC_PROGRESS_PREFIX}4;20;Download (stalled)${OSC_PROGRESS_ST}`,
+    ]);
+    osc.dispose();
+  });
+
   test.each([-60_000, 60_000])(
     "keeps throttling steady after a %i ms wall-clock adjustment",
     (offset) => {
@@ -178,8 +281,10 @@ describe("createOscProgressController", () => {
       expect(writes).toHaveLength(1);
       vi.advanceTimersByTime(150);
       osc.setPercent("Work", 3);
+      vi.advanceTimersByTime(150);
       expect(writes).toEqual([
         `${OSC_PROGRESS_PREFIX}1;1;Work${OSC_PROGRESS_ST}`,
+        `${OSC_PROGRESS_PREFIX}1;2;Work${OSC_PROGRESS_ST}`,
         `${OSC_PROGRESS_PREFIX}1;3;Work${OSC_PROGRESS_ST}`,
       ]);
       osc.dispose();

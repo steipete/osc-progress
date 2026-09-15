@@ -72,7 +72,9 @@ Ramp progression and controller throttling use monotonic elapsed time, so system
 do not reset progress or suppress updates.
 
 Controller updates are deduplicated and percentage-only changes are throttled to at most about one
-update every 150 ms. A state or label change emits immediately.
+update every 150 ms. The latest percentage is emitted at the end of the current throttle window,
+even if no more updates arrive. A state or label change emits immediately and cancels any queued
+percentage. `clear()` and `dispose()` also cancel queued updates.
 
 ## Sequence and label helpers
 

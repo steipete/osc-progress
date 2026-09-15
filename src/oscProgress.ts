@@ -267,6 +267,14 @@ export function createOscProgressController(
 
   let stallTimer: NodeJS.Timeout | null = null;
   let clearTimer: NodeJS.Timeout | null = null;
+  let updateTimer: NodeJS.Timeout | null = null;
+
+  const clearUpdateTimer = () => {
+    if (updateTimer !== null) {
+      clearTimeout(updateTimer);
+      updateTimer = null;
+    }
+  };
 
   const cancelPendingClear = (): boolean => {
     if (clearTimer === null) return false;
@@ -285,6 +293,7 @@ export function createOscProgressController(
   const clearTimers = () => {
     clearStallTimer();
     cancelPendingClear();
+    clearUpdateTimer();
   };
 
   const scheduleStall = () => {
@@ -325,7 +334,21 @@ export function createOscProgressController(
     if (!shouldEmit && percentChanged) {
       shouldEmit = !withinInterval;
     }
-    if (!shouldEmit) return;
+    clearUpdateTimer();
+    if (!shouldEmit) {
+      if (percentChanged) {
+        // Keep the latest value without extending the current throttle window.
+        updateTimer = setTimeout(
+          () => {
+            updateTimer = null;
+            send(state, normalizedPercent, cleanLabel, true);
+          },
+          Math.ceil(DEFAULT_THROTTLE_INTERVAL_MS - (now - lastEmitAt)),
+        );
+        updateTimer.unref();
+      }
+      return;
+    }
 
     if (normalizedPercent == null) {
       write(`${OSC_PROGRESS_PREFIX}${state};;${cleanLabel}${end}`);
