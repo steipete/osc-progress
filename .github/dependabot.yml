@@ -6,6 +6,10 @@ updates:
       interval: "weekly"
     cooldown:
       default-days: 2
+    ignore:
+      # Keep declarations aligned with the oldest supported Node.js runtime.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
     groups:
       dependencies:
         patterns: ["*"]
