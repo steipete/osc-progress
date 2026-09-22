@@ -54,17 +54,17 @@
     "check": "pnpm lint && pnpm typecheck && pnpm test:coverage"
   },
   "devDependencies": {
-    "@types/node": "^24.13.4",
-    "@vitest/coverage-v8": "^5.0.0",
-    "oxfmt": "^0.67.0",
-    "oxlint": "^1.82.0",
+    "@types/node": "^24.13.6",
+    "@vitest/coverage-v8": "^5.0.1",
+    "oxfmt": "^0.68.0",
+    "oxlint": "^1.83.0",
     "postcss": "^8.5.28",
     "typescript": "^7.0.2",
     "vite": "^8.3.0",
-    "vitest": "^5.0.0"
+    "vitest": "^5.0.1"
   },
   "engines": {
     "node": ">=24"
   },
-  "packageManager": "pnpm@11.26.0"
+  "packageManager": "pnpm@11.27.0"
 }
