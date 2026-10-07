@@ -8,6 +8,10 @@ All notable changes to this project are documented in this file.
 
 - Emit the latest throttled percentage even when no further updates arrive, and cancel queued percentages when progress changes state, clears, or is disposed.
 
+### Changed
+
+- Refresh Node.js 24 types, Vitest and V8 coverage, Oxfmt, Oxlint, PostCSS, and Vite while retaining Node.js 24+ support and the two-day dependency cooldown. (`#52`, thanks `@dependabot`)
+
 ## 0.3.4 - 2026-09-13
 
 ### Fixed
