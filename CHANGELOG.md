@@ -10,6 +10,7 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 
+- Update Oxfmt to 0.72.0, Oxlint to 1.87.0, and Vite to 8.3.3 while retaining Node.js 24+ support and the two-day dependency cooldown. (`#53`, thanks `@dependabot`)
 - Refresh Node.js 24 types, Vitest and V8 coverage, Oxfmt, Oxlint, PostCSS, and Vite while retaining Node.js 24+ support and the two-day dependency cooldown. (`#52`, thanks `@dependabot`)
 
 ## 0.3.4 - 2026-09-13
