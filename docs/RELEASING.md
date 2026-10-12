@@ -1,53 +1,25 @@
-# Release Checklist (npm)
+# Releasing osc-progress
 
-Rule: every release = **npm publish + git tag + GitHub release** (always do all three).
+The [release workflow](../.github/workflows/release.yml) publishes `osc-progress` through the shared `openclaw/release-workflows` npm archetype pinned at `@v1`. GitHub Actions owns npm publication and the GitHub Release; npm trusts this repository's **`release.yml`** caller through GitHub OIDC. No npm token or local publishing command is needed.
 
-## 1) Version & changelog
+## Prepare and prove
 
-- [ ] Choose the next version from the unreleased changes.
-- [ ] Update `package.json` version.
-- [ ] Update `CHANGELOG.md` (product-facing bullets only).
-- [ ] `pnpm install` (keep `pnpm-lock.yaml` current).
+1. Protect `main`, then prepare the package version and exactly one dated `##` section in `CHANGELOG.md` in a pull request. Keep an `Unreleased` section for subsequent work. Keep the pinned pnpm version aligned with `package.json`.
+2. Run `pnpm check` and `pnpm build`, merge the reviewed preparation, and wait for successful push CI on the exact merged commit.
+3. Dispatch **Release** on current `main` with the package version and **`dry_run: true`** (the default). This must validate and build that exact main commit, pack the package, and install and smoke-test the frozen tarball on clean x64 and arm64 Linux runners. It creates no tags, npm versions, or GitHub Releases. Existing version tags remain untouched.
 
-## 2) Validate
+The shared archetype must include its protected-main dry-run fix: earlier `@v1` revisions selected an existing version tag instead of main. A successful run must identify the merged main SHA as its frozen source. Never treat a proof of an older tag as proof of the preparation commit.
 
-- [ ] `pnpm check` (Oxfmt, Oxlint, typecheck, and tests; must be warning-free).
+## Publish after approval
 
-## 3) Build + inspect artifact
+After an explicit release request, push a signed annotated `vX.Y.Z` tag at the prepared commit. The workflow verifies SSH signatures against [release-allowed-signers](../.github/release-allowed-signers). Alternatively, dispatch **Release** from protected main with the prepared version and `dry_run: false`; this creates an immutable annotated tag after validation. Dispatch publication does not create an SSH signature; use the signed-tag path when one is required.
 
-- [ ] `pnpm build` (ensure `dist/` is current).
-- [ ] `npm pack --pack-destination /tmp`
-- [ ] Inspect tarball contents (no junk):
-  - `tar -tf /tmp/osc-progress-<version>.tgz`
+The workflow checks package metadata, dated notes, protected-branch ancestry, and independent push CI on the exact frozen commit. It packs without publishing credentials, independently verifies and smoke-tests the same tarball on both architectures, then publishes the verified bytes using npm trusted publishing and verifies registry integrity, signatures, and commit-bound provenance. The GitHub Release contains the changelog notes, tarball, package plan, inventory, and `SHA256SUMS`.
 
-## 4) Publish
+Never move a version tag, overwrite release assets, or republish a version. A retry can only accept an already published npm version when the registry bytes match the frozen payload exactly. Use the immutable tag ref for a live retry; do not try to release an old version from newer main.
 
-- [ ] Ensure git status is clean; commit + push.
-- [ ] Confirm registry + auth:
-  - `npm ping`
-  - `npm whoami`
-- [ ] Use the maintainer's existing npm login and approved credential storage. Do not put tokens in shell profiles or commit them to npm configuration.
-- [ ] Publish:
-  - `pnpm publish --access public --tag latest`
-  - If npm requires 2FA OTP: add `--otp <code>`
-- [ ] Verify registry:
-  - `npm view osc-progress version`
-  - `npm view osc-progress dist-tags --json`
+## Verify and close out
 
-## 5) Tag + GitHub release (always)
+Read `npm view osc-progress@X.Y.Z version dist-tags dist.tarball dist.integrity time --json` and the matching GitHub Release. Verify the release checksums and successful provenance job, and keep the next `Unreleased` section ready. These read-only checks and local build/pack inspection remain available; the former local npm/GitHub publication checklist is retired.
 
-- [ ] Ensure tag points at the published commit:
-  - `git tag v<version>`
-  - `git push origin v<version>`
-- [ ] Create GitHub release for tag `v<version>`:
-  - title = `<version>` (just the version)
-  - write the changelog bullets and release proof to `/tmp/osc-progress-release.md`, then inspect it
-  - `gh release create v<version> --title "<version>" --notes-file /tmp/osc-progress-release.md`
-
-## 6) Verify (post)
-
-- [ ] `npm view osc-progress@<version> version dist-tags dist.tarball dist.integrity time --json`
-- [ ] Confirm `latest`, tarball, integrity, and publish time all match the published version.
-- [ ] Confirm GitHub tag + Release exist and point to the published commit.
-- [ ] Confirm the Release body contains the changelog notes plus links to the npm version page, registry tarball, integrity, and CI/proof.
-- [ ] Open a new `## Unreleased` section, commit, and push the release closeout.
+This package has no Homebrew formula, signed macOS artifacts, or Sparkle feed. No repository release secrets are required. Trusted publishing must list `osc-progress` → `steipete/osc-progress` → `release.yml` with publishing allowed.

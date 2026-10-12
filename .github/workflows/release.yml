@@ -1,0 +1,53 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Existing package version to validate, or prepared version to release
+        required: true
+        type: string
+      dry_run:
+        description: Validate, build, pack, and smoke test without publishing
+        default: true
+        type: boolean
+
+permissions: {}
+
+concurrency:
+  group: release-${{ github.repository }}-${{ inputs.version || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    permissions:
+      actions: read
+      checks: read
+      contents: write
+      statuses: read
+      id-token: write
+    uses: openclaw/release-workflows/.github/workflows/release-npm-package.yml@v1
+    with:
+      version: ${{ inputs.version || github.ref_name }}
+      dry_run: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+      require-signed-tag: ${{ github.event_name == 'push' }}
+      strict-checks: true
+      node-version: "24"
+      package-manager: pnpm
+      package-manager-version: "11.27.0"
+      package-dirs: '["."]'
+      test-command: pnpm check
+      build-command: pnpm build
+      smoke-command: |
+        node --input-type=module <<'JS'
+        import assert from 'node:assert/strict';
+        import { startOscProgress, stripOscProgress } from 'osc-progress';
+        const frames = [];
+        const stop = startOscProgress({ force: true, isTty: true, indeterminate: true, write: frame => frames.push(frame) });
+        stop();
+        stop();
+        assert.deepEqual(frames, ['\x1b]9;4;3;;Working…\x1b\\', '\x1b]9;4;0;0;Working…\x1b\\']);
+        assert.equal(stripOscProgress(`before${frames.join('')}after`), 'beforeafter');
+        JS
