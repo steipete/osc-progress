@@ -36,7 +36,7 @@ jobs:
       strict-checks: true
       node-version: "24"
       package-manager: pnpm
-      package-manager-version: "11.27.0"
+      package-manager-version: "11.28.4"
       package-dirs: '["."]'
       test-command: pnpm check
       build-command: pnpm build
