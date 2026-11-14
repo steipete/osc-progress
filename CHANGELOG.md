@@ -10,6 +10,8 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 
+- Refresh Oxfmt, Oxlint, Vite, compatible transitive tooling, and the pinned pnpm setup action while preserving Node.js 24+, the two-day cooldown, and the esbuild security override. (#60, #62, thanks @dependabot)
+
 - Refresh compatible Vitest, Oxfmt, Oxlint, PostCSS, and transitive development tooling while preserving Node.js 24+, the two-day cooldown, and the esbuild security override. (#59, thanks @dependabot)
 - Refresh the development tooling and align pnpm 11.28.4 across local and release builds, preserving Node.js 24+ and the two-day dependency cooldown. (#58, thanks @dependabot)
 - Refresh Node.js 24 types, Vitest and V8 coverage, Oxfmt, Oxlint, PostCSS, Vite, and the pinned setup-node action while retaining Node.js 24+ support and the two-day dependency cooldown. (`#55`, `#56`, thanks `@dependabot`)
