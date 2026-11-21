@@ -10,6 +10,8 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 
+- Refresh Vitest and V8 coverage, Oxfmt, Oxlint, and PostCSS while preserving Node.js 24+, the two-day cooldown, and the esbuild security override. (#63, thanks @dependabot)
+
 - Refresh Oxfmt, Oxlint, Vite, compatible transitive tooling, and the pinned pnpm setup action while preserving Node.js 24+, the two-day cooldown, and the esbuild security override. (#60, #62, thanks @dependabot)
 
 - Refresh compatible Vitest, Oxfmt, Oxlint, PostCSS, and transitive development tooling while preserving Node.js 24+, the two-day cooldown, and the esbuild security override. (#59, thanks @dependabot)
